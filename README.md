@@ -1,17 +1,16 @@
 # 🧀 CheddaBoards SDK
 
-> Decentralized leaderboard and player profile SDK for Internet Computer games.  
-> Built for developers who want simple, secure, and flexible score tracking in Web3 or hybrid games.
+> Serverless leaderboard and player profile SDK for Indie Devs.  
+> Built for developers who want simple, secure, and flexible score tracking. Empowering solo devs and small game studios
 
 ---
 
 ## 🚀 Features
 
 - 🎮 Easy integration with Godot, HTML5, or JavaScript-based games
-- 🔐 Authentication via Internet Identity, email, or API key
+- 🔐 Authentication via Google, Apple, API, Email & II
 - 📊 Submit scores, view leaderboards, manage player profiles
 - 🧠 Caching and local storage support
-- 🌐 Built for the Internet Computer using DFINITY agent + auth tools
 
 ---
 
@@ -186,14 +185,14 @@ Pull requests welcome! Submit an issue or PR if you'd like to help improve the S
 
 ---
 
-## 💸 Grants & Roadmap
+## 💸 Roadmap
 
-This SDK is part of a broader effort to bring rich, decentralized game mechanics to the Internet Computer.
+This SDK is part of a broader effort to bring rich, serverless game mechanics to the Internet Computer.
 
 Planned improvements include:
 
+- Full Godot 4x integration
 - Unity plugin support
 - Offline score queueing
 - Dev dashboard for managing games and players
-
-Funding from DFINITY or Web3 grants will support those next steps.
+- Cross game profiles
