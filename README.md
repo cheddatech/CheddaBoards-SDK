@@ -12,21 +12,6 @@
 - 📊 Submit scores, view leaderboards, manage player profiles
 - 🧠 Caching and local storage support
 
----
-
-## 📦 Installation
-
-```bash
-npm install cheddaboards-sdk
-```
-
-> **Peer dependencies required:**
->
-> - `@dfinity/agent`
-> - `@dfinity/auth-client`
-
----
-
 ## ⚙️ Basic Usage
 
 ```js
@@ -51,7 +36,7 @@ await chedda.login();
 
 ## 🔐 Authentication Options
 
-**1. Internet Identity (Web3)**
+**1. Internet Identity **
 
 ```js
 await chedda.login();
