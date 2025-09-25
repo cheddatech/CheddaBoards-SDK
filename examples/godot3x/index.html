@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Your Game Title</title>
+
+  <!-- Godot engine bootstrap -->
+  <script src="index.js"></script>
+  
+  <!-- CheddaBoards SDK -->
+  <script src="https://unpkg.com/@cheddaboards/sdk/dist/cheddaboards.min.js" type="module"></script>
+  <!-- Or use local version: <script src="cheddaboards.min.js" type="module"></script> -->
+
+  <!-- Google Sign-In (Optional - remove if not using) -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <!-- Apple Sign-In (Optional - remove if not using) -->
+  <script type="text/javascript" src="https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js"></script>
+
+  <style>
+    html, body { 
+      margin: 0; 
+      height: 100%; 
+      overflow: hidden; 
+      background: #000; 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
+    }
+    
+    #preload {
+      position: absolute; 
+      inset: 0;
+      display: flex; 
+      flex-direction: column; 
+      align-items: center; 
+      justify-content: center;
+      background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+      color: #fff; 
+      z-index: 9999; 
+      transition: opacity 0.5s ease-out;
+    }
+    
+    #preload.fade { 
+      opacity: 0; 
+      pointer-events: none; 
+    }
+    
+    .loading-text {
+      font-size: 1.2rem;
+      margin-bottom: 1rem;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    
+    #spin {
+      width: 40px; 
+      height: 40px;
+      border: 3px solid rgba(255, 255, 255, 0.2); 
+      border-top: 3px solid #fff;
+      border-radius: 50%; 
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin { 
+      to { transform: rotate(360deg); } 
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+    
+    canvas { 
+      width: 100vw; 
+      height: 100vh; 
+      object-fit: contain; 
+    }
+
+    /* Nickname prompt modal */
+    #nickname-modal {
+      display: none;
+      position: fixed;
+      z-index: 10000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.8);
+      align-items: center;
+      justify-content: center;
+    }
+
+    #nickname-modal.show {
+      display: flex;
+    }
+
+    .modal-content {
+      background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+      padding: 30px;
+      border-radius: 10px;
+      text-align: center;
+      color: #fff;
+      box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+      min-width: 300px;
+    }
+
+    .modal-content h2 {
+      margin-top: 0;
+    }
+
+    .modal-content input {
+      padding: 10px;
+      font-size: 16px;
+      width: 200px;
+      margin: 10px;
+      background: #333;
+      border: 2px solid #666;
+      color: #fff;
+      border-radius: 5px;
+    }
+
+    .modal-content input:focus {
+      outline: none;
+      border-color: #888;
+    }
+
+    .modal-content button {
+      padding: 10px 20px;
+      font-size: 16px;
+      background: #4CAF50;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 5px;
+      transition: background 0.3s;
+    }
+
+    .modal-content button:hover {
+      background: #45a049;
+    }
+
+    .modal-content button.cancel {
+      background: #666;
+    }
+
+    .modal-content button.cancel:hover {
+      background: #555;
+    }
+  </style>
+</head>
+<body>
+  <!-- Preloader -->
+  <div id="preload">
+    <div class="loading-text">Loading...</div>
+    <div id="spin"></div>
+  </div>
+
+  <!-- Nickname Modal -->
+  <div id="nickname-modal">
+    <div class="modal-content">
+      <h2>Choose Your Nickname</h2>
+      <p id="modal-message">Enter a nickname (2-12 characters):</p>
+      <input type="text" id="nickname-input" maxlength="12" placeholder="Player123" />
+      <div>
+        <button onclick="submitNickname()">Confirm</button>
+        <button class="cancel" onclick="cancelNickname()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main canvas for Godot -->
+  <canvas id="canvas">Your browser doesn't support HTML5 canvas.</canvas>
+
+  <script type="module">
+    // ============================================================
+    // CONFIGURATION - MODIFY THESE VALUES FOR YOUR GAME
+    // ============================================================
+    const CONFIG = {
+      // REQUIRED: Your unique game identifier
+      GAME_ID: 'YOUR_GAME_ID_HERE',  // e.g., 'my-awesome-game'
+      
+      // REQUIRED: Your game's display name
+      GAME_NAME: 'Your Game Name',
+      
+      // OPTIONAL: Custom canister ID (leave null to use default)
+      CANISTER_ID: null,  // e.g., 'xxxxx-xxxxx-xxxxx-xxxxx-cai'
+      
+      // OPTIONAL: Google OAuth Configuration
+      // Get from: https://console.cloud.google.com/
+      GOOGLE_CLIENT_ID: '',  // e.g., '123456789-abcdef.apps.googleusercontent.com'
+      
+      // OPTIONAL: Apple Sign-In Configuration
+      // Get from: https://developer.apple.com/
+      APPLE_SERVICE_ID: '',  // e.g., 'com.yourcompany.yourgame'
+      APPLE_REDIRECT_URI: '',  // e.g., 'https://yourgame.com/auth/apple'
+      
+      // ICP Host Configuration (usually no need to change)
+      ICP_HOST: window.location.hostname.includes('localhost') 
+        ? 'http://localhost:4943' 
+        : 'https://icp-api.io'
+    };
+
+    // ============================================================
+    // VALIDATION
+    // ============================================================
+    if (CONFIG.GAME_ID === 'YOUR_GAME_ID_HERE') {
+      console.error('[CheddaBoards] ERROR: You must configure your GAME_ID in the CONFIG object!');
+      document.querySelector('.loading-text').textContent = 'Configuration Error: Set GAME_ID';
+    }
+
+    // ============================================================
+    // GLOBAL STATE (Do not modify)
+    // ============================================================
+    let chedda = null;
+    let godotReady = false;
+    let pendingNicknameCallback = null;
+    let responseQueue = [];
+    let currentProfile = null;
+    let isAuthenticated = false;
+    let authType = '';
+    
+    // ============================================================
+    // HELPER FUNCTIONS
+    // ============================================================
+    
+    function sanitizeProfileData(profile) {
+      if (!profile) return null;
+      
+      return {
+        nickname: String(profile.nickname || profile.username || 'Player'),
+        score: parseInt(profile.score || profile.highScore || 0) || 0,
+        streak: parseInt(profile.streak || profile.bestStreak || 0) || 0,
+        achievements: Array.isArray(profile.achievements) ? profile.achievements : [],
+        authType: profile.authType || authType || 'unknown'
+      };
+    }
+    
+    // ============================================================
+    // GODOT BRIDGE FUNCTIONS - Called from CheddaLogin.gd
+    // ============================================================
+    
+    window.chedda_get_response = function() {
+      if (responseQueue.length > 0) {
+        const response = responseQueue.shift();
+        console.log('[Bridge] Sending response to Godot:', response);
+        return JSON.stringify(response);
+      }
+      return null;
+    };
+    
+    window.chedda_is_auth = function() {
+      const authenticated = chedda && chedda.isAuthenticated();
+      console.log('[Bridge] Is authenticated check:', authenticated);
+      return authenticated;
+    };
+    
+    window.chedda_get_profile = function() {
+      console.log('[Bridge] Get profile called, returning:', currentProfile);
+      return currentProfile ? JSON.stringify(currentProfile) : null;
+    };
+    
+    window.chedda_login_ii = async function(nickname) {
+      try {
+        console.log('[Bridge] Internet Identity login requested with nickname:', nickname);
+        
+        if (!nickname || nickname === "" || nickname === "null") {
+          showNicknamePrompt('Choose your nickname:', 'Player' + Math.floor(Math.random() * 10000), async (chosenNickname) => {
+            if (chosenNickname) {
+              try {
+                console.log('[Bridge] Logging in with II, nickname:', chosenNickname);
+                const profile = await chedda.login.ii(chosenNickname);
+                console.log('[Bridge] II login successful, profile:', profile);
+                handleLoginSuccess('internetIdentity', profile);
+              } catch (error) {
+                console.error('[Bridge] II login error:', error);
+                handleLoginError(error);
+              }
+            } else {
+              responseQueue.push({
+                action: 'loginII',
+                success: false,
+                error: 'Nickname required'
+              });
+            }
+          });
+        } else {
+          console.log('[Bridge] Direct II login with nickname:', nickname);
+          const profile = await chedda.login.ii(nickname);
+          console.log('[Bridge] II login successful, profile:', profile);
+          handleLoginSuccess('internetIdentity', profile);
+        }
+      } catch (error) {
+        console.error('[Bridge] II login error:', error);
+        handleLoginError(error);
+      }
+    };
+    
+    window.chedda_login_google = function(credential) {
+      console.log('[Bridge] Google login requested');
+      
+      if (!CONFIG.GOOGLE_CLIENT_ID) {
+        responseQueue.push({
+          action: 'loginGoogle',
+          success: false,
+          error: 'Google Sign-In not configured. Set GOOGLE_CLIENT_ID in CONFIG.'
+        });
+        return;
+      }
+      
+      if (window.google?.accounts) {
+        google.accounts.id.prompt();
+      } else {
+        responseQueue.push({
+          action: 'loginGoogle',
+          success: false,
+          error: 'Google Sign-In not available'
+        });
+      }
+    };
+    
+    window.chedda_login_apple = function(token) {
+      console.log('[Bridge] Apple login requested');
+      
+      if (!CONFIG.APPLE_SERVICE_ID) {
+        responseQueue.push({
+          action: 'loginApple',
+          success: false,
+          error: 'Apple Sign-In not configured. Set APPLE_SERVICE_ID in CONFIG.'
+        });
+        return;
+      }
+      
+      if (window.AppleID?.auth) {
+        AppleID.auth.signIn();
+      } else {
+        responseQueue.push({
+          action: 'loginApple',
+          success: false,
+          error: 'Apple Sign-In not available'
+        });
+      }
+    };
+    
+    window.chedda_logout = async function() {
+      try {
+        console.log('[Bridge] Logout requested');
+        await chedda.logout();
+        isAuthenticated = false;
+        authType = '';
+        currentProfile = null;
+        
+        responseQueue.push({
+          action: 'logout',
+          success: true
+        });
+        console.log('[Bridge] Logout successful');
+      } catch (error) {
+        console.error('[Bridge] Logout error:', error);
+        responseQueue.push({
+          action: 'logout',
+          success: false,
+          error: error.message
+        });
+      }
+    };
+    
+    window.chedda_submit = async function(score, streak) {
+      try {
+        console.log('[Bridge] Score submission:', score, streak);
+         
+        if (!chedda || !chedda.isAuthenticated()) {
+          responseQueue.push({
+            action: 'submitScore',
+            success: false,
+            error: 'Not authenticated'
+          });
+          return;
+        }
+        
+        const result = await chedda.submitScore(score, streak);
+        console.log('[Bridge] Score submission result:', result);
+        
+        if (result && result.success) {
+          const profile = await chedda.getProfile();
+          currentProfile = sanitizeProfileData(profile);
+          
+          responseQueue.push({
+            action: 'submitScore',
+            success: true,
+            score: score,
+            streak: streak,
+            profile: currentProfile
+          });
+        } else {
+          responseQueue.push({
+            action: 'submitScore',
+            success: false,
+            error: result ? result.error : 'Unknown error'
+          });
+        }
+      } catch (error) {
+        console.error('[Bridge] Score submission error:', error);
+        responseQueue.push({
+          action: 'submitScore',
+          success: false,
+          error: error.message
+        });
+      }
+    };
+    
+    window.chedda_profile = async function() {
+      try {
+        console.log('[Bridge] Profile refresh requested');
+        
+        if (!chedda || !chedda.isAuthenticated()) {
+          console.log('[Bridge] Not authenticated for profile refresh');
+          responseQueue.push({
+            action: 'getProfile',
+            success: false,
+            error: 'Not authenticated'
+          });
+          return;
+        }
+        
+        const profile = await chedda.getProfile();
+        console.log('[Bridge] Profile fetched:', profile);
+        
+        if (profile) {
+          currentProfile = sanitizeProfileData(profile);
+          responseQueue.push({
+            action: 'getProfile',
+            success: true,
+            profile: currentProfile
+          });
+        } else {
+          responseQueue.push({
+            action: 'getProfile',
+            success: false,
+            error: 'No profile found'
+          });
+        }
+      } catch (error) {
+        console.error('[Bridge] Profile fetch error:', error);
+        responseQueue.push({
+          action: 'getProfile',
+          success: false,
+          error: error.message
+        });
+      }
+    };
+    
+    window.chedda_leaderboard = async function() {
+      try {
+        console.log('[Bridge] Leaderboard requested');
+        const leaderboard = await chedda.getLeaderboard('score', 100);
+        console.log('[Bridge] Leaderboard fetched:', leaderboard);
+        
+        responseQueue.push({
+          action: 'getLeaderboard',
+          success: true,
+          leaderboard: leaderboard || []
+        });
+      } catch (error) {
+        console.error('[Bridge] Leaderboard fetch error:', error);
+        responseQueue.push({
+          action: 'getLeaderboard',
+          success: false,
+          error: error.message
+        });
+      }
+    };
+    
+    // ============================================================
+    // UI HELPER FUNCTIONS
+    // ============================================================
+    
+    function handleLoginSuccess(type, profile) {
+      console.log('[Helper] Login success:', type, profile);
+      isAuthenticated = true;
+      authType = type;
+      
+      currentProfile = sanitizeProfileData(profile);
+      
+      responseQueue.push({
+        action: 'login' + type.charAt(0).toUpperCase() + type.slice(1),
+        success: true,
+        profile: currentProfile,
+        authType: type
+      });
+      
+      console.log('[Helper] Login response queued');
+    }
+    
+    function handleLoginError(error) {
+      console.error('[Helper] Login error:', error);
+      responseQueue.push({
+        action: 'login',
+        success: false,
+        error: error.message || 'Login failed'
+      });
+    }
+    
+    function showNicknamePrompt(message, defaultValue, callback) {
+      const modal = document.getElementById('nickname-modal');
+      const input = document.getElementById('nickname-input');
+      const messageEl = document.getElementById('modal-message');
+      
+      messageEl.textContent = message || 'Enter a nickname (2-12 characters):';
+      input.value = defaultValue || '';
+      pendingNicknameCallback = callback;
+      
+      modal.classList.add('show');
+      input.focus();
+    }
+
+    window.submitNickname = function() {
+      const modal = document.getElementById('nickname-modal');
+      const input = document.getElementById('nickname-input');
+      const nickname = input.value.trim();
+      
+      if (nickname.length >= 2 && nickname.length <= 12) {
+        modal.classList.remove('show');
+        if (pendingNicknameCallback) {
+          pendingNicknameCallback(nickname);
+          pendingNicknameCallback = null;
+        }
+      } else {
+        alert('Nickname must be 2-12 characters');
+      }
+    }
+
+    window.cancelNickname = function() {
+      const modal = document.getElementById('nickname-modal');
+      modal.classList.remove('show');
+      if (pendingNicknameCallback) {
+        pendingNicknameCallback(null);
+        pendingNicknameCallback = null;
+      }
+    }
+
+    // Enter key support for nickname input
+    document.addEventListener('DOMContentLoaded', () => {
+      const input = document.getElementById('nickname-input');
+      if (input) {
+        input.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') {
+            submitNickname();
+          }
+        });
+      }
+    });
+    
+    // ============================================================
+    // INITIALIZATION
+    // ============================================================
+    window.addEventListener('load', async () => {
+      console.log('[Init] Starting initialization...');
+      
+      try {
+        // Wait for CheddaBoards to be available
+        let attempts = 0;
+        while (!window.CheddaBoards && attempts < 50) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          attempts++;
+        }
+        
+        if (!window.CheddaBoards) {
+          throw new Error('CheddaBoards SDK not loaded');
+        }
+        
+        console.log('[Init] CheddaBoards SDK found, initializing...');
+        
+        // Initialize CheddaBoards SDK
+        chedda = await window.CheddaBoards.init(CONFIG.CANISTER_ID, {
+          gameId: CONFIG.GAME_ID,
+          gameName: CONFIG.GAME_NAME,
+          host: CONFIG.ICP_HOST,
+          autoInit: true
+        });
+        
+        window.chedda = chedda; // Expose for debugging
+        console.log('[Init] ✅ CheddaBoards initialized:', chedda);
+        
+        // Check for existing profile
+        if (chedda.isAuthenticated()) {
+          console.log('[Init] User is authenticated, fetching profile...');
+          isAuthenticated = true;
+          authType = chedda.getAuthType ? chedda.getAuthType() : 'unknown';
+          
+          try {
+            const profile = await chedda.getProfile();
+            console.log('[Init] Existing profile found:', profile);
+            
+            if (profile) {
+              currentProfile = sanitizeProfileData(profile);
+              
+              responseQueue.push({
+                action: 'init',
+                success: true,
+                authenticated: true,
+                authType: authType,
+                profile: currentProfile
+              });
+              console.log('[Init] Queued init response with profile');
+            }
+          } catch (error) {
+            console.error('[Init] Error fetching profile:', error);
+            responseQueue.push({
+              action: 'init',
+              success: true,
+              authenticated: false
+            });
+          }
+        } else {
+          console.log('[Init] User not authenticated');
+          responseQueue.push({
+            action: 'init',
+            success: true,
+            authenticated: false
+          });
+        }
+        
+        // Initialize Google Sign-In (if configured)
+        if (CONFIG.GOOGLE_CLIENT_ID && window.google?.accounts) {
+          google.accounts.id.initialize({
+            client_id: CONFIG.GOOGLE_CLIENT_ID,
+            callback: async (response) => {
+              try {
+                console.log('[Google] OAuth response received');
+                showNicknamePrompt('Choose your nickname:', '', async (nickname) => {
+                  if (nickname) {
+                    console.log('[Google] Logging in with nickname:', nickname);
+                    const profile = await chedda.login.google(response.credential, nickname);
+                    console.log('[Google] Login successful:', profile);
+                    handleLoginSuccess('google', profile);
+                  } else {
+                    handleLoginError({ message: 'Nickname required' });
+                  }
+                });
+              } catch (error) {
+                console.error('[Google] Login error:', error);
+                handleLoginError(error);
+              }
+            },
+            auto_select: false,
+            cancel_on_tap_outside: true
+          });
+          console.log('[Init] ✅ Google Sign-In initialized');
+        }
+        
+        // Initialize Apple Sign-In (if configured)
+        if (CONFIG.APPLE_SERVICE_ID && window.AppleID?.auth) {
+          AppleID.auth.init({
+            clientId: CONFIG.APPLE_SERVICE_ID,
+            scope: 'name email',
+            redirectURI: CONFIG.APPLE_REDIRECT_URI,
+            state: 'signin',
+            usePopup: true
+          });
+          
+          document.addEventListener('AppleIDSignInOnSuccess', async (event) => {
+            try {
+              console.log('[Apple] Sign-in success event');
+              showNicknamePrompt('Choose your nickname:', '', async (nickname) => {
+                if (nickname) {
+                  console.log('[Apple] Logging in with nickname:', nickname);
+                  const profile = await chedda.login.apple(event.detail.authorization, nickname);
+                  console.log('[Apple] Login successful:', profile);
+                  handleLoginSuccess('apple', profile);
+                } else {
+                  handleLoginError({ message: 'Nickname required' });
+                }
+              });
+            } catch (error) {
+              console.error('[Apple] Login error:', error);
+              handleLoginError(error);
+            }
+          });
+          
+          document.addEventListener('AppleIDSignInOnFailure', (event) => {
+            console.error('[Apple] Sign-in failure event:', event);
+            handleLoginError({ message: 'Apple Sign-In failed' });
+          });
+          
+          console.log('[Init] ✅ Apple Sign-In initialized');
+        }
+        
+        // Initialize Godot Engine
+        const engine = new Engine({
+          canvasResizePolicy: 2,
+          executable: 'index',
+          fileSizes: { 'index.pck': 0, 'index.wasm': 0 },
+          focusCanvas: true,
+          canvas: document.getElementById('canvas')
+        });
+        
+        await engine.startGame();
+        window.godot = engine;
+        godotReady = true;
+        console.log('[Init] ✅ Godot engine started');
+        
+        // Hide preloader
+        setTimeout(() => {
+          document.getElementById('preload').classList.add('fade');
+          setTimeout(() => {
+            document.getElementById('preload')?.remove();
+          }, 500);
+        }, 500);
+        
+        console.log('[Init] ✅ All systems ready!');
+        
+      } catch (error) {
+        console.error('[Init] Initialization failed:', error);
+        document.querySelector('.loading-text').textContent = 'Error loading game: ' + error.message;
+      }
+    });
+    
+    // Debug helper
+    window.debugChedda = () => {
+      console.log('🔍 CheddaBoards Debug:');
+      console.log('- Instance:', chedda);
+      console.log('- Authenticated:', isAuthenticated);
+      console.log('- Auth Type:', authType);
+      console.log('- Profile:', currentProfile);
+      console.log('- Response Queue:', responseQueue);
+      console.log('- Can call is_auth:', window.chedda_is_auth());
+      console.log('- Can get profile:', window.chedda_get_profile());
+      return chedda;
+    };
+  </script>
+</body>
+</html>
