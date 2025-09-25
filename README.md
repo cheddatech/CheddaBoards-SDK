@@ -4,7 +4,7 @@ Open source SDK game leaderboards, achievements and analytics on the Internet Co
 
 ## What is CheddaBoards?
 
-CheddaBoards provides a **free hosted backend service** for indie game developers to add leaderboards, achievements, and player profiles to their games. Your data is stored permanently on and is immutable.
+CheddaBoards provides a **free hosted backend service** for indie game developers to add leaderboards, achievements, and player profiles to their games. Your data is stored permanently and is immutable.
 
 - **Free Tier**: Up to 1000 players per game
 - **Open Source SDK**: This repository
