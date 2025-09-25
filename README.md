@@ -249,8 +249,8 @@ MIT License - see [LICENSE](./LICENSE) file for details.
 **Q: Is this really free?**  
 A: Yes! The SDK is open source and the hosted service has a generous free tier.
 
-**Q: What happens if you shut down?**  
-A: Your data is on ICP's decentralised network. The backend code is included - deploy your own anytime.
+**Q: What happens if you shut down?**
+A: Two safeguards: First, your data exists on permanent infrastructure we don't control. Second, all backend code is included - you or any developer can redeploy the service. Your game data is never trapped.
 
 **Q: Can I use my own authentication?**  
 A: Yes! Provide your own Google/Apple credentials, or use Internet Identity for free.
