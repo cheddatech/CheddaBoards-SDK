@@ -25,20 +25,19 @@ CheddaBoards provides a **free hosted backend service** for indie game developer
 
 ### Installation
 
-```bash
-npm install @cheddaboards/sdk
-```
+Download and include the SDK in your project:
 
-Or include directly in HTML:
 ```html
-<script src="https://unpkg.com/@cheddaboards/sdk/dist/cheddaboards.min.js"></script>
+<!-- Option 1: Include directly from GitHub -->
+<script src="https://cdn.jsdelivr.net/gh/cheddatech/CheddaBoards-SDK/dist/cheddaboards.min.js"></script>
+
+<!-- Option 2: Download and host locally -->
+<script src="./js/cheddaboards.min.js"></script>
 ```
 
 ### Basic Usage
 
 ```javascript
-import CheddaBoards from '@cheddaboards/sdk';
-
 // Initialize with your game ID (uses hosted service)
 const chedda = await CheddaBoards.init(null, {
   gameId: 'my-awesome-game',  // Required: Your unique game ID
@@ -77,6 +76,24 @@ Your Game → CheddaBoards SDK → Hosted ICP Backend → Blockchain Storage
 2. **We provide** the backend infrastructure (free up to limits)
 3. **ICP blockchain** ensures permanent data storage
 4. **Players** get unified profiles across all CheddaBoards games
+
+## Repository Contents
+
+```
+CheddaBoards-SDK/
+├── dist/
+│   └── cheddaboards.min.js    # Minified SDK - ready to use
+├── src/
+│   ├── sdk/
+│   │   └── index.js           # Source code (for auditing)
+│   └── backend/
+│       └── main.mo            # Backend canister code (for transparency)
+├── examples/
+│   ├── html/                  # Browser game example
+│   ├── unity/                 # Unity WebGL integration
+│   └── godot/                 # Godot HTML5 integration
+└── README.md
+```
 
 ## Authentication Methods
 
@@ -169,10 +186,9 @@ Need more? Contact us for custom limits or self-hosting options.
 
 ## Self-Hosting Option
 
-Want to run your own backend? The canister code is available for self-deployment:
+Want to run your own backend? The canister code is available in `src/backend/`:
 
 ```bash
-# Contact us for backend source code access
 # Deploy to ICP with your own cycles
 dfx deploy --network ic
 
@@ -196,7 +212,6 @@ Check out the [examples](./examples) directory for:
 - [HTML5 Game](./examples/html) - Simple browser game
 - [Unity WebGL](./examples/unity) - Unity integration
 - [Godot HTML5](./examples/godot) - Godot integration  
-- [React App](./examples/react) - React integration
 
 ## Local Development
 
@@ -221,17 +236,17 @@ window.addEventListener('chedda:google_login', (e) => {
 });
 ```
 
+## Why Open Source?
+
+We believe gaming infrastructure shouldn't be gatekept. By open sourcing CheddaBoards:
+- Developers can verify there's no vendor lock-in
+- The community can contribute improvements
+- Games can trust their data is handled transparently
+- The ecosystem grows faster through collaboration
+
 ## Contributing
 
 We welcome contributions! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
-
-### Development Setup
-```bash
-git clone https://github.com/cheddaboards/sdk
-cd sdk
-npm install
-npm test
-```
 
 ## License
 
@@ -239,7 +254,7 @@ MIT License - see [LICENSE](./LICENSE) file for details.
 
 ## Support
 
-- **GitHub Issues**: [Report bugs or request features](https://github.com/cheddaboards/sdk/issues)
+- **GitHub Issues**: [Report bugs or request features](https://github.com/cheddatech/CheddaBoards-SDK/issues)
 - **Discord**: [Join our community](https://discord.gg/cheddaboards)
 - **Email**: support@cheddaboards.com
 
@@ -249,7 +264,7 @@ MIT License - see [LICENSE](./LICENSE) file for details.
 A: Yes! The SDK is open source and the hosted service has a generous free tier.
 
 **Q: What happens if you shut down?**  
-A: Your data is on the ICP blockchain. You can deploy your own backend anytime.
+A: Your data is on the ICP blockchain. The backend code is included - deploy your own anytime.
 
 **Q: Do I need cryptocurrency?**  
 A: No! We handle all blockchain complexity. It's just an API to you.
