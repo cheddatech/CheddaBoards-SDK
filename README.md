@@ -125,14 +125,9 @@ await chedda.login.apple(appleResponse, 'PlayerNickname');
 
 ## Platform Integration
 
-### Unity WebGL
-See [examples/unity](./examples/unity) for complete integration guide.
-
 ### Godot HTML5
-See [examples/godot](./examples/godot) for complete integration guide.
+See [examples/godot](./examples/godot3X) for complete integration guide.
 
-### React/Vue/Angular
-See [examples/react](./examples/react) for framework examples.
 
 ## API Reference
 
@@ -205,13 +200,6 @@ const chedda = await CheddaBoards.init('your-canister-id', {
 - **Streak Validation**: Maximum 80 streak increase per submission
 - **Session Management**: 7-day session duration for social logins
 - **Blockchain Security**: Cryptographic verification via ICP
-
-## Examples
-
-Check out the [examples](./examples) directory for:
-- [HTML5 Game](./examples/html) - Simple browser game
-- [Unity WebGL](./examples/unity) - Unity integration
-- [Godot HTML5](./examples/godot) - Godot integration  
 
 ## Local Development
 
