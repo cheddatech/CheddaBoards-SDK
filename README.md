@@ -103,7 +103,7 @@ await chedda.login.anonymous('GuestPlayer');
 ```
 
 ### Internet Identity
-ICP-native auth, no configuration needed:
+Passwordless auth (like FaceID/TouchID for web), no configuration needed:
 ```javascript
 await chedda.login.ii('PlayerNickname');
 ```
