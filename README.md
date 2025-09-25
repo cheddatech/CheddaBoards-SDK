@@ -1,10 +1,10 @@
 # CheddaBoards 🧀
 
-Open source SDK for decentralized game leaderboards and achievements on the Internet Computer Protocol.
+Open source SDK game leaderboards, achievements and analytics on the Internet Computer Protocol.
 
 ## What is CheddaBoards?
 
-CheddaBoards provides a **free hosted backend service** for indie game developers to add leaderboards, achievements, and player profiles to their games. Your data is stored permanently on the ICP blockchain.
+CheddaBoards provides a **free hosted backend service** for indie game developers to add leaderboards, achievements, and player profiles to their games. Your data is stored permanently on and is immutable.
 
 - **Free Tier**: Up to 1000 players per game
 - **Open Source SDK**: This repository
@@ -13,9 +13,8 @@ CheddaBoards provides a **free hosted backend service** for indie game developer
 
 ## Features
 
-- **Multi-Auth Support**: Google, Apple, Internet Identity, and anonymous logins
-- **Cross-Platform**: Works in browsers, Unity, Godot, and any JavaScript environment
-- **Blockchain Permanent**: Data stored on ICP blockchain
+- **Multi-Auth Support**: Google, Apple, Internet Identity, and Anonymous logins
+- **Cross-Platform**: Works in browsers, Godot, and any JavaScript environment (Unity & React in development)
 - **Simple Integration**: One-line initialization
 - **Rich Analytics**: Track player behavior and engagement
 - **Achievement System**: Unlock and track achievements
@@ -69,12 +68,12 @@ await chedda.unlockAchievement(
 ## How It Works
 
 ```
-Your Game → CheddaBoards SDK → Hosted ICP Backend → Blockchain Storage
+Your Game → CheddaBoards SDK → Hosted ICP Backend → Serverless Storage
 ```
 
 1. **You integrate** the SDK into your game
 2. **We provide** the backend infrastructure (free up to limits)
-3. **ICP blockchain** ensures permanent data storage
+3. **Serverless** ensures permanent data storage
 4. **Players** get unified profiles across all CheddaBoards games
 
 ## Repository Contents
@@ -89,9 +88,9 @@ CheddaBoards-SDK/
 │   └── backend/
 │       └── main.mo            # Backend canister code (for transparency)
 ├── examples/
-│   ├── html/                  # Browser game example
-│   ├── unity/                 # Unity WebGL integration
-│   └── godot/                 # Godot HTML5 integration
+│   ├── html/                  # Browser game example // docs coming soon
+│   ├── unity/                 # Unity WebGL integration // in development
+│   └── godot3x/                 # Godot HTML5 integration // not tested in Godot 4 - expected to work as is, testing imminent
 └── README.md
 ```
 
@@ -103,8 +102,8 @@ Perfect for casual play without requiring sign-up:
 await chedda.login.anonymous('GuestPlayer');
 ```
 
-### Internet Identity (Recommended)
-Blockchain-native auth, no configuration needed:
+### Internet Identity
+ICP-native auth, no configuration needed:
 ```javascript
 await chedda.login.ii('PlayerNickname');
 ```
@@ -199,7 +198,6 @@ const chedda = await CheddaBoards.init('your-canister-id', {
 - **Score Validation**: Maximum 1,500 points per submission
 - **Streak Validation**: Maximum 80 streak increase per submission
 - **Session Management**: 7-day session duration for social logins
-- **Blockchain Security**: Cryptographic verification via ICP
 
 ## Local Development
 
@@ -252,16 +250,13 @@ MIT License - see [LICENSE](./LICENSE) file for details.
 A: Yes! The SDK is open source and the hosted service has a generous free tier.
 
 **Q: What happens if you shut down?**  
-A: Your data is on the ICP blockchain. The backend code is included - deploy your own anytime.
-
-**Q: Do I need cryptocurrency?**  
-A: No! We handle all blockchain complexity. It's just an API to you.
+A: Your data is on ICP's decentralised network. The backend code is included - deploy your own anytime.
 
 **Q: Can I use my own authentication?**  
 A: Yes! Provide your own Google/Apple credentials, or use Internet Identity for free.
 
 **Q: How is this different from Firebase/PlayFab?**  
-A: Permanent blockchain storage, no vendor lock-in, unified player profiles across games.
+A: Permanent serverless storage, no vendor lock-in, unified player profiles across games.
 
 ## Status
 
