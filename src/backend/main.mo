@@ -147,13 +147,13 @@ persistent actor CheddaBoards {
   // CONSTANTS
   // ──────────────────────────────────────────────────────────────────────────
 
-  private transient let CONTROLLER : Principal = Principal.fromText("enter_controlling_principal_here");
+  private transient let CONTROLLER : Principal = Principal.fromText("xxxxx-xxxxx-xxxxx-xxxxx-xxxxx-xxxxx-xxxxx-xxxxx-xxxxx-xxxxx-xxx");
   private transient let MAX_PER_ROUND : Nat64 = 1_500;
   private transient let MAX_STREAK_DELTA : Nat64 = 80;
-  private transient let MIN_INTERVAL_NS : Nat64 = 2_000_000_000;
+  private transient let MIN_INTERVAL_NS : Nat64 = 2_000_000_000; // 2 secs
   private transient let ABSOLUTE_SCORE_CAP : Nat64 = 15_000;
   private transient let ABSOLUTE_STREAK_CAP : Nat64 = 600;
-  private transient let MAX_FILE_SIZE : Nat = 5_000_000;
+  private transient let MAX_FILE_SIZE : Nat = 5_000_000; // 5 mbs
   private transient let MAX_FILES : Nat = 100;
   private transient let SESSION_DURATION_NS : Nat64 = 7 * 24 * 60 * 60 * 1_000_000_000; // 7 days
 
