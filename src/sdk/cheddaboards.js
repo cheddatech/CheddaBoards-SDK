@@ -1,6 +1,3 @@
-// cheddaboards-oneline.js
-// Complete SDK for CheddaBoards with session-based authentication
-// Uses sessions for social logins, principals for Internet Identity
 
 import { Actor, HttpAgent, AnonymousIdentity } from "@dfinity/agent";
 import { AuthClient } from "@dfinity/auth-client";
@@ -1369,3 +1366,4 @@ if (typeof window !== 'undefined') {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = CheddaAPI;
 }
+
