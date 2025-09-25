@@ -1,7 +1,251 @@
 
 import { Actor, HttpAgent, AnonymousIdentity } from "@dfinity/agent";
 import { AuthClient } from "@dfinity/auth-client";
-import { idlFactory } from '../declarations/cheddaboards_v2_backend/cheddaboards_v2_backend.did.js';
+
+const idlFactory = ({ IDL }) => {
+  const Result_1 = IDL.Variant({ 'ok' : IDL.Text, 'err' : IDL.Text });
+  const Achievement = IDL.Record({
+    'id' : IDL.Text,
+    'name' : IDL.Text,
+    'gameId' : IDL.Text,
+    'description' : IDL.Text,
+  });
+  const GameInfo = IDL.Record({
+    'created' : IDL.Nat64,
+    'totalPlayers' : IDL.Nat,
+    'owner' : IDL.Principal,
+    'name' : IDL.Text,
+    'gameId' : IDL.Text,
+    'description' : IDL.Text,
+    'isActive' : IDL.Bool,
+    'totalPlays' : IDL.Nat,
+  });
+  const GameProfile = IDL.Record({
+    'total_score' : IDL.Nat64,
+    'gameId' : IDL.Text,
+    'best_streak' : IDL.Nat64,
+    'achievements' : IDL.Vec(Achievement),
+    'last_played' : IDL.Nat64,
+    'play_count' : IDL.Nat,
+  });
+  const AuthType = IDL.Variant({
+    'internetIdentity' : IDL.Null,
+    'apple' : IDL.Null,
+    'google' : IDL.Null,
+    'anonymous' : IDL.Null,
+  });
+  const UserIdentifier = IDL.Variant({
+    'principal' : IDL.Principal,
+    'email' : IDL.Text,
+  });
+  const UserProfile = IDL.Record({
+    'created' : IDL.Nat64,
+    'nickname' : IDL.Text,
+    'gameProfiles' : IDL.Vec(IDL.Tuple(IDL.Text, GameProfile)),
+    'authType' : AuthType,
+    'last_updated' : IDL.Nat64,
+    'identifier' : UserIdentifier,
+  });
+  const DailyStats = IDL.Record({
+    'uniquePlayers' : IDL.Nat,
+    'date' : IDL.Text,
+    'gameId' : IDL.Text,
+    'anonymousPlays' : IDL.Nat,
+    'totalScore' : IDL.Nat64,
+    'totalGames' : IDL.Nat,
+    'newUsers' : IDL.Nat,
+    'authenticatedPlays' : IDL.Nat,
+  });
+  const SortBy = IDL.Variant({ 'streak' : IDL.Null, 'score' : IDL.Null });
+  const PlayerStats = IDL.Record({
+    'lastPlayed' : IDL.Nat64,
+    'avgScore' : IDL.Nat64,
+    'gameId' : IDL.Text,
+    'favoriteTime' : IDL.Text,
+    'totalGames' : IDL.Nat,
+    'playStreak' : IDL.Nat,
+    'identifier' : UserIdentifier,
+  });
+  const AnalyticsEvent = IDL.Record({
+    'metadata' : IDL.Vec(IDL.Tuple(IDL.Text, IDL.Text)),
+    'gameId' : IDL.Text,
+    'timestamp' : IDL.Nat64,
+    'identifier' : UserIdentifier,
+    'eventType' : IDL.Text,
+  });
+  const Result = IDL.Variant({
+    'ok' : IDL.Record({
+      'nickname' : IDL.Text,
+      'valid' : IDL.Bool,
+      'email' : IDL.Text,
+    }),
+    'err' : IDL.Text,
+  });
+  return IDL.Service({
+    'adminGate' : IDL.Func([IDL.Text, IDL.Vec(IDL.Text)], [Result_1], []),
+    'anonymousLogin' : IDL.Func([IDL.Text], [Result_1], []),
+    'deleteFile' : IDL.Func([IDL.Text], [Result_1], []),
+    'destroySession' : IDL.Func([IDL.Text], [Result_1], []),
+    'getAchievements' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text],
+        [IDL.Vec(Achievement)],
+        ['query'],
+      ),
+    'getActiveGames' : IDL.Func([], [IDL.Vec(GameInfo)], ['query']),
+    'getActiveSessions' : IDL.Func([], [IDL.Nat], ['query']),
+    'getAllProfiles' : IDL.Func(
+        [IDL.Text, IDL.Text],
+        [IDL.Opt(UserProfile)],
+        ['query'],
+      ),
+    'getAnalyticsSummary' : IDL.Func(
+        [],
+        [
+          IDL.Record({
+            'uniquePlayers' : IDL.Nat,
+            'totalEvents' : IDL.Nat,
+            'totalDays' : IDL.Nat,
+            'totalGames' : IDL.Nat,
+            'recentEvents' : IDL.Nat,
+            'mostActiveDay' : IDL.Text,
+          }),
+        ],
+        ['query'],
+      ),
+    'getDailyStats' : IDL.Func(
+        [IDL.Text, IDL.Text],
+        [IDL.Opt(DailyStats)],
+        ['query'],
+      ),
+    'getFile' : IDL.Func([IDL.Text], [IDL.Opt(IDL.Vec(IDL.Nat8))], ['query']),
+    'getFileInfo' : IDL.Func(
+        [IDL.Text],
+        [IDL.Opt(IDL.Record({ 'name' : IDL.Text, 'size' : IDL.Nat }))],
+        ['query'],
+      ),
+    'getGame' : IDL.Func([IDL.Text], [IDL.Opt(GameInfo)], ['query']),
+    'getGameAuthStats' : IDL.Func(
+        [IDL.Text],
+        [
+          IDL.Record({
+            'total' : IDL.Nat,
+            'internetIdentity' : IDL.Nat,
+            'apple' : IDL.Nat,
+            'google' : IDL.Nat,
+            'anonymous' : IDL.Nat,
+          }),
+        ],
+        ['query'],
+      ),
+    'getGameProfile' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text],
+        [IDL.Opt(GameProfile)],
+        ['query'],
+      ),
+    'getGameProfileBySession' : IDL.Func(
+        [IDL.Text, IDL.Text],
+        [IDL.Opt(GameProfile)],
+        ['query'],
+      ),
+    'getGamesByOwner' : IDL.Func(
+        [IDL.Principal],
+        [IDL.Vec(GameInfo)],
+        ['query'],
+      ),
+    'getLeaderboard' : IDL.Func(
+        [IDL.Text, SortBy, IDL.Nat],
+        [IDL.Vec(IDL.Tuple(IDL.Text, IDL.Nat64, IDL.Nat64, IDL.Text))],
+        ['query'],
+      ),
+    'getLeaderboardByAuth' : IDL.Func(
+        [IDL.Text, AuthType, SortBy, IDL.Nat],
+        [IDL.Vec(IDL.Tuple(IDL.Text, IDL.Nat64, IDL.Nat64, IDL.Text))],
+        ['query'],
+      ),
+    'getPlayerAnalytics' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text],
+        [IDL.Opt(PlayerStats)],
+        ['query'],
+      ),
+    'getProfile' : IDL.Func(
+        [IDL.Text, IDL.Text],
+        [IDL.Opt(UserProfile)],
+        ['query'],
+      ),
+    'getProfileBySession' : IDL.Func(
+        [IDL.Text],
+        [IDL.Opt(UserProfile)],
+        ['query'],
+      ),
+    'getRecentEvents' : IDL.Func(
+        [IDL.Nat],
+        [IDL.Vec(AnalyticsEvent)],
+        ['query'],
+      ),
+    'getSessionInfo' : IDL.Func(
+        [IDL.Text],
+        [
+          IDL.Opt(
+            IDL.Record({
+              'created' : IDL.Nat64,
+              'nickname' : IDL.Text,
+              'expires' : IDL.Nat64,
+              'authType' : IDL.Text,
+              'email' : IDL.Text,
+              'lastUsed' : IDL.Nat64,
+            })
+          ),
+        ],
+        ['query'],
+      ),
+    'getSystemInfo' : IDL.Func(
+        [],
+        [
+          IDL.Record({
+            'principalUserCount' : IDL.Nat,
+            'fileCount' : IDL.Nat,
+            'totalEvents' : IDL.Nat,
+            'gameCount' : IDL.Nat,
+            'suspicionLogSize' : IDL.Nat,
+            'activeDays' : IDL.Nat,
+            'emailUserCount' : IDL.Nat,
+          }),
+        ],
+        ['query'],
+      ),
+    'iiLogin' : IDL.Func([IDL.Text], [Result_1], []),
+    'listFiles' : IDL.Func([], [IDL.Vec(IDL.Text)], ['query']),
+    'listGames' : IDL.Func([], [IDL.Vec(GameInfo)], ['query']),
+    'registerGame' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [Result_1], []),
+    'socialLogin' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [Result_1], []),
+    'submitScore' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Nat, IDL.Nat],
+        [Result_1],
+        [],
+      ),
+    'toggleGameActive' : IDL.Func([IDL.Text], [Result_1], []),
+    'trackEvent' : IDL.Func(
+        [
+          IDL.Text,
+          IDL.Text,
+          IDL.Text,
+          IDL.Text,
+          IDL.Vec(IDL.Tuple(IDL.Text, IDL.Text)),
+        ],
+        [],
+        [],
+      ),
+    'unlockAchievement' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text, Achievement],
+        [Result_1],
+        [],
+      ),
+    'updateGame' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [Result_1], []),
+    'uploadFile' : IDL.Func([IDL.Text, IDL.Vec(IDL.Nat8)], [Result_1], []),
+    'validateSession' : IDL.Func([IDL.Text], [Result], []),
+  });
+};
+export const init = ({ IDL }) => { return []; };
 
 class CheddaBoardsSimple {
   constructor(config = {}) {
@@ -10,7 +254,7 @@ class CheddaBoardsSimple {
       throw new Error('[CheddaBoards] gameId is required. Initialize with: CheddaBoards.init(canisterId, { gameId: "your-game-id" })');
     }
     
-    this.canisterId = config.canisterId || "your_canister_id";
+    this.canisterId = config.canisterId || "fdvph-sqaaa-aaaap-qqc4a-cai";
     this.gameId = config.gameId;
     this.gameName = config.gameName || "Unnamed Game";
     this.gameDescription = config.gameDescription || "CheddaBoards SDK";
@@ -1366,4 +1610,5 @@ if (typeof window !== 'undefined') {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = CheddaAPI;
 }
+
 
