@@ -1,5 +1,5 @@
 # CheddaBoards Integration for Godot 4.x
-# Version 1.0.0
+# Version 2.0.0
 # 
 # Setup Instructions:
 # 1. Add this script to your Godot project
@@ -278,7 +278,8 @@ func is_authenticated() -> bool:
 		return false
 		
 	var result = JavaScriptBridge.eval("window.chedda_is_auth()")
-	return result == true
+	# JavaScript returns 1 for true, 0 for false
+	return result == 1 or result == true
 
 func get_cached_profile() -> Dictionary:
 	"""Returns the cached profile dictionary"""
