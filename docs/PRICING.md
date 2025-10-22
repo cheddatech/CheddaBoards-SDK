@@ -14,23 +14,8 @@ CheddaBoards is designed for transparency — no hidden limits, no surprise bill
 | Global leaderboards | ✅ |
 | 30-day analytics retention | ✅ |
 | Community support | ✅ |
-| Branding | 🧀 CheddaBoards logo |
 
 Perfect for indie developers and small projects.
-
----
-
-## 💼 Pro Tier — $99/month
-
-| Feature | Included |
-|----------|-----------|
-| Unlimited games | ✅ |
-| 12-month analytics history | ✅ |
-| White-label (remove branding) | ✅ |
-| Custom domains | ✅ |
-| A/B testing tools | ✅ |
-| Revenue dashboards | ✅ |
-| Priority support (24hr) | ✅ |
 
 ---
 
