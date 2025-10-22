@@ -1,5 +1,5 @@
 # CheddaBoards Integration for Godot 4.x
-# Version 2.0.0
+# Version 1.0.0
 # 
 # Setup Instructions:
 # 1. Add this script to your Godot project
