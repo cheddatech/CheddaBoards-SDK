@@ -1,8 +1,8 @@
 # CheddaBoards 🧀
 
-**Serverless gaming backend for indie developers. Zero DevOps. Zero cost.**
+**Post-Infastructure gaming backend for indie developers. Zero DevOps.**
 
-Drop-in SDK for leaderboards, achievements, and player profiles—built on Internet Computer Protocol.
+Drop-in SDK for leaderboards, achievements, and player profiles built on Internet Computer Protocol.
 
 [![Live Demo](https://img.shields.io/badge/demo-The%20Cheese%20Game-yellow)](https://thecheesegame.online)
 [![Website](https://img.shields.io/badge/website-cheddaboards.com-blue)](https://cheddaboards.com)
@@ -29,7 +29,7 @@ CheddaBoards gives indie game developers **permanent, serverless infrastructure*
 
 ```html
 <!-- Option 1: CDN -->
-<script src="https://cdn.jsdelivr.net/gh/cheddatech/CheddaBoards-SDK/dist/cheddaboards.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/cheddaboards_v1@1/cheddaboards.min.js"></script>
 
 <!-- Option 2: Local -->
 <script src="./js/cheddaboards.min.js"></script>
@@ -40,7 +40,7 @@ CheddaBoards gives indie game developers **permanent, serverless infrastructure*
 ```javascript
 // Initialize (one line!)
 const chedda = await CheddaBoards.init(null, {
-  gameId: 'my-awesome-game'  // Your registered game ID
+  gameId: 'my-cheese-game'  // Your registered game ID
 });
 
 // Player login (Google, Apple, or Quick Start)
@@ -59,8 +59,8 @@ const leaders = await chedda.getLeaderboard('score', 10);
 
 ## 🚀 Features
 
-✅ **Multi-auth:** Google, Apple, Quick Start (passwordless), Anonymous  
-✅ **Cross-platform:** Godot, JavaScript, HTML5 (Unity coming soon)  
+✅ **Multi-auth:** Google, Apple, Quick Start (passwordless, ii)
+✅ **Cross-platform:** Godot 3x/4x, HTML5, JavaScript, Unity(in development)
 ✅ **One-line init:** No complex setup  
 ✅ **Open source:** Infrastructure you can audit & self-host  
 ✅ **Anti-cheat:** Built-in validation & rate limiting  
@@ -91,7 +91,7 @@ CheddaBoards-SDK/
 ## 🎯 How It Works
 
 ```
-Your Game → CheddaBoards SDK → ICP Backend → Permanent Storage
+Your Game → CheddaBoards SDK → Backend → Permanent Storage
 ```
 
 1. **You:** Integrate SDK with one line of code
@@ -120,12 +120,6 @@ Requires your own Google OAuth credentials.
 await chedda.login.apple(appleResponse, 'PlayerNickname');
 ```
 Requires your own Apple Developer account.
-
-### Anonymous
-```javascript
-await chedda.login.anonymous('GuestPlayer');
-```
-Perfect for casual play without sign-up.
 
 ---
 
@@ -168,9 +162,9 @@ const chedda = await CheddaBoards.init('your-canister-id', {
 
 ## 🎮 Live Example
 
-**The Cheese Game** — Pac-Man meets chaos, powered by CheddaBoards.
+**The Cheese Game** — Pac-Man meets modern retro chaos, powered by CheddaBoards.
 
-👉 [Play it now](https://thecheesegame.online) (100+ players served)
+👉 [Play it now](https://thecheesegame.online)
 
 See CheddaBoards working in production with real leaderboards, achievements, and player profiles.
 
@@ -218,12 +212,6 @@ Your data lives on permanent ICP infrastructure. You can self-host the backend (
 
 ---
 
-## 🧀 Why "Chedda"?
-
-Because cheese is timeless, unpretentious, and belongs to everyone. That's how we build infrastructure: **open source, permanent, and impossible to gatekeep.**
-
----
-
 ## 📜 License
 
 MIT License - see [LICENSE](LICENSE) for details.
@@ -242,5 +230,3 @@ MIT License - see [LICENSE](LICENSE) for details.
 ---
 
 **Built by [CheddaTech Ltd](https://cheddatech.com) on Internet Computer Protocol.**
-
-*From a £120 laptop to serverless gaming infrastructure. [Read the founder's story →](https://cheddatech.com/founder.html)*
