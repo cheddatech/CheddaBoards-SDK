@@ -3,8 +3,7 @@
 ---
 
 ### 🆓 Is CheddaBoards really free?
-Yes! The SDK and hosted backend are free for up to three games per developer.  
-You can upgrade to Pro anytime if you need more projects or features.
+Yes! The SDK and hosted backend are free for up to three games per developer. 
 
 ---
 
@@ -36,7 +35,4 @@ Absolutely!
 Check out the [Advanced Deployment Guide](DEPLOYMENT_ADVANCED.md) to run your own backend.
 
 ---
-
-### 💵 How do you make money?
-Through optional Pro subscriptions ($99/month) and community sponsorships.
 
