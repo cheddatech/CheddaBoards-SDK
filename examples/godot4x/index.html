@@ -3,13 +3,19 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Your Godot Game</title>
+  <title>{{GAME_NAME}}</title>
 
-  <!-- Godot engine bootstrap - exported from Godot -->
+  <!-- Godot engine bootstrap -->
   <script src="index.js"></script>
   
-  <!-- CheddaBoards SDK - Leaderboard and authentication for ICP -->
-  <script src="https://cdn.jsdelivr.net/npm/cheddaboards_v1@1/cheddaboards.min.js"></script>
+  <!-- CheddaBoards SDK -->
+  <script src="cheddaboards.js" type="module"></script>
+
+  <!-- Google Sign-In (optional) -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <!-- Apple Sign-In (optional) -->
+  <script type="text/javascript" src="https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js"></script>
 
   <style>
     html, body { 
@@ -28,7 +34,7 @@
       align-items: center; 
       justify-content: center;
       background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
-      color: #fff; 
+      color: #FFD700; 
       z-index: 9999; 
       transition: opacity 0.5s ease-out;
     }
@@ -47,8 +53,8 @@
     #spin {
       width: 40px; 
       height: 40px;
-      border: 3px solid rgba(255, 255, 255, 0.2); 
-      border-top: 3px solid #fff;
+      border: 3px solid rgba(255, 215, 0, 0.2); 
+      border-top: 3px solid #FFD700;
       border-radius: 50%; 
       animation: spin 1s linear infinite;
     }
@@ -67,359 +73,273 @@
       height: 100vh; 
       object-fit: contain; 
     }
-
-    /* Nickname prompt modal */
-    #nickname-modal {
-      display: none;
-      position: fixed;
-      z-index: 10000;
-      left: 0;
-      top: 0;
-      width: 100%;
-      height: 100%;
-      background-color: rgba(0,0,0,0.8);
-      align-items: center;
-      justify-content: center;
-    }
-
-    #nickname-modal.show {
-      display: flex;
-    }
-
-    .modal-content {
-      background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
-      padding: 30px;
-      border-radius: 10px;
-      text-align: center;
-      color: #fff;
-      box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
-      min-width: 300px;
-    }
-
-    .modal-content h2 {
-      margin-top: 0;
-    }
-
-    .modal-content input {
-      padding: 10px;
-      font-size: 16px;
-      width: 200px;
-      margin: 10px;
-      background: #333;
-      border: 2px solid #666;
-      color: #fff;
-      border-radius: 5px;
-    }
-
-    .modal-content input:focus {
-      outline: none;
-      border-color: #888;
-    }
-
-    .modal-content button {
-      padding: 10px 20px;
-      font-size: 16px;
-      background: #4CAF50;
-      color: #fff;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      margin: 5px;
-      transition: background 0.3s;
-    }
-
-    .modal-content button:hover {
-      background: #45a049;
-    }
-
-    .modal-content button.cancel {
-      background: #666;
-    }
-
-    .modal-content button.cancel:hover {
-      background: #555;
-    }
   </style>
 </head>
 <body>
   <!-- Preloader -->
   <div id="preload">
-    <div class="loading-text">Loading...</div>
+    <div class="loading-text">Loading {{GAME_NAME}}...</div>
     <div id="spin"></div>
-  </div>
-
-  <!-- Nickname Modal (optional - for collecting nicknames) -->
-  <div id="nickname-modal">
-    <div class="modal-content">
-      <h2>Choose Your Nickname</h2>
-      <p id="modal-message">Enter a nickname (2-12 characters):</p>
-      <input type="text" id="nickname-input" maxlength="12" placeholder="Player123" />
-      <div>
-        <button onclick="submitNickname()">Confirm</button>
-        <button class="cancel" onclick="cancelNickname()">Cancel</button>
-      </div>
-    </div>
   </div>
 
   <!-- Main canvas for Godot -->
   <canvas id="canvas">Your browser doesn't support HTML5 canvas.</canvas>
 
-  <script>
+  <script type="module">
     // ============================================================
-    // CONFIGURATION - MODIFY THESE VALUES FOR YOUR GAME
+    // CONFIGURATION - CUSTOMIZE THESE VALUES
     // ============================================================
     const CONFIG = {
-      // REQUIRED: Your unique game identifier (lowercase, hyphens allowed)
-      GAME_ID: 'your-game-id',  // e.g., 'my-awesome-game'
-      
-      // REQUIRED: Your game's display name
-      GAME_NAME: 'Your Game Name',  // e.g., 'Super Platformer'
-      
-      // REQUIRED: Your CheddaBoards canister ID
-      // Get this from: https://cheddaboards.com or deploy your own
-      CANISTER_ID: 'your-canister-id',  // e.g., 'xxxxx-xxxxx-xxxxx-xxxxx-cai'
-      
-      // ICP Host Configuration (usually no need to change)
+      GAME_ID: 'GAME_ID',                          // Your game's unique ID
+      GAME_NAME: 'GAME_NAME',                      // Your game's display name
+      CANISTER_ID: 'CANISTER_ID',                  // CheddaBoards canister ID
+      GOOGLE_CLIENT_ID: 'GOOGLE_CLIENT_ID',        // Optional: Google OAuth client ID
+      APPLE_SERVICE_ID: 'APPLE_SERVICE_ID',        // Optional: Apple service ID
+      APPLE_REDIRECT_URI: 'APPLE_REDIRECT_URI',    // Optional: Apple redirect URI
       ICP_HOST: window.location.hostname.includes('localhost') 
         ? 'http://localhost:4943' 
         : 'https://icp-api.io'
     };
 
     // ============================================================
-    // VALIDATION
-    // ============================================================
-    if (CONFIG.GAME_ID === 'your-game-id' || CONFIG.CANISTER_ID === 'your-canister-id') {
-      console.error('[CheddaBoards] ERROR: You must configure GAME_ID and CANISTER_ID in the CONFIG object!');
-      document.querySelector('.loading-text').textContent = 'Configuration Error: Check console';
-    }
-
-    // ============================================================
-    // GLOBAL STATE (Do not modify)
+    // GLOBAL STATE
     // ============================================================
     let chedda = null;
+    let godotReady = false;
     let responseQueue = [];
     let currentProfile = null;
     let isAuthenticated = false;
     let authType = '';
     
+    // Performance optimization
+    let cachedProfileData = null;
+    let lastProfileFetch = 0;
+    const PROFILE_CACHE_DURATION = 30000; // 30 seconds
+    const PROFILE_STORAGE_KEY = 'cheddaboards_profile';
+
+    let isRefreshingProfile = false;
+    let isSubmittingScore = false;
+    
     // ============================================================
     // HELPER FUNCTIONS
     // ============================================================
     
+    function saveProfileToLocalStorage(profile) {
+      try {
+        localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify({
+          profile: profile,
+          timestamp: Date.now()
+        }));
+      } catch (e) {
+        console.warn('[Storage] Failed to save profile:', e);
+      }
+    }
+
+    function loadProfileFromLocalStorage() {
+      try {
+        const data = localStorage.getItem(PROFILE_STORAGE_KEY);
+        if (data) {
+          const parsed = JSON.parse(data);
+          if (Date.now() - parsed.timestamp < 3600000) { // 1 hour
+            console.log('[Storage] ⚡ Instant profile from localStorage');
+            return parsed.profile;
+          }
+        }
+      } catch (e) {
+        console.warn('[Storage] Failed to load profile:', e);
+      }
+      return null;
+    }
+    
     function sanitizeProfileData(profile) {
       if (!profile) return null;
       
-      return {
-        nickname: String(profile.nickname || 'Player'),
-        score: parseInt(profile.score || 0) || 0,
-        streak: parseInt(profile.streak || 0) || 0,
+      const now = Date.now();
+      if (cachedProfileData && (now - lastProfileFetch) < PROFILE_CACHE_DURATION) {
+        console.log('[Helper] Using cached profile data');
+        return cachedProfileData;
+      }
+      
+      const sanitized = {
+        nickname: String(profile.nickname || profile.username || 'Player'),
+        score: parseInt(profile.score || profile.highScore || 0) || 0,
+        streak: parseInt(profile.streak || profile.bestStreak || 0) || 0,
         achievements: Array.isArray(profile.achievements) ? profile.achievements : [],
-        authType: authType || 'unknown'
+        authType: profile.authType || authType || 'unknown'
       };
+      
+      cachedProfileData = sanitized;
+      lastProfileFetch = now;
+      
+      return sanitized;
+    }
+    
+    function handleLoginSuccess(type, profile) {
+      console.log('[Helper] Login success:', type, profile);
+      isAuthenticated = true;
+      authType = type;
+      currentProfile = sanitizeProfileData(profile);
+      
+      let actionName = 'login';
+      switch(type) {
+        case 'cheddaId':
+        case 'internetIdentity':
+          actionName = 'loginInternetIdentity';
+          break;
+        case 'google':
+          actionName = 'loginGoogle';
+          break;
+        case 'apple':
+          actionName = 'loginApple';
+          break;
+        case 'anonymous':
+          actionName = 'loginAnonymous';
+          break;
+      }
+      
+      responseQueue.push({
+        action: actionName,
+        success: true,
+        profile: currentProfile,
+        authType: type
+      });
+      
+      saveProfileToLocalStorage(currentProfile);
+      console.log('[Helper] Login response queued');
+    }
+    
+    function handleLoginError(error) {
+      console.error('[Helper] Login error:', error);
+      responseQueue.push({
+        action: 'login',
+        success: false,
+        error: error.message || 'Login failed'
+      });
     }
     
     // ============================================================
-    // GODOT BRIDGE FUNCTIONS - Called from GDScript
+    // GODOT BRIDGE FUNCTIONS
     // ============================================================
     
-    /**
-     * Check if CheddaBoards is ready
-     * Usage in GDScript: JavaScriptBridge.eval("window.chedda_is_ready()")
-     */
-    window.chedda_is_ready = () => {
-      const ready = chedda !== null;
-      console.log('[Bridge] chedda_is_ready:', ready);
-      return ready;
-    };
-    
-    /**
-     * Check if user is authenticated
-     * Usage in GDScript: JavaScriptBridge.eval("window.chedda_is_auth()")
-     */
-    window.chedda_is_auth = () => {
-      const auth = isAuthenticated && chedda?.isAuthenticated();
-      console.log('[Bridge] chedda_is_auth:', auth);
-      return auth;
-    };
-    
-    /**
-     * Get current user profile
-     * Usage in GDScript: JavaScriptBridge.eval("window.chedda_get_profile()")
-     */
-    window.chedda_get_profile = () => {
-      console.log('[Bridge] chedda_get_profile:', currentProfile);
-      return currentProfile;
-    };
-    
-    /**
-     * Poll for responses (call this regularly from GDScript)
-     * Usage in GDScript: JavaScriptBridge.eval("window.chedda_poll_response()")
-     */
-    window.chedda_poll_response = () => {
+    window.chedda_get_response = function() {
       if (responseQueue.length > 0) {
         const response = responseQueue.shift();
-        console.log('[Bridge] Polling response:', response);
-        return response;
+        console.log('[Bridge] Sending response to Godot:', response);
+        return JSON.stringify(response);
       }
       return null;
     };
     
-    /**
-     * Login with Internet Identity
-     * Usage in GDScript: JavaScriptBridge.eval("window.chedda_login_ii('PlayerName')")
-     */
-    window.chedda_login_ii = async (nickname) => {
-      console.log('[Bridge] chedda_login_ii called with nickname:', nickname);
-      
-      if (!chedda) {
-        console.error('[Bridge] CheddaBoards not initialized');
-        responseQueue.push({
-          action: 'login',
-          success: false,
-          error: 'Not initialized'
-        });
-        return;
+    window.chedda_is_auth = function() {
+      return chedda && chedda.isAuthenticated();
+    };
+    
+    window.chedda_get_profile = function() {
+      if (currentProfile) {
+        return JSON.stringify(currentProfile);
       }
-      
+      return null;
+    };
+
+    window.chedda_login_ii = async function(nickname) {
       try {
-        console.log('[II] Starting Internet Identity login...');
-        const profile = await chedda.login.ii(nickname);
-        console.log('[II] Login returned profile:', profile);
+        console.log('[Bridge] CheddaID login requested');
         
-        if (profile && profile.nickname) {
-          isAuthenticated = true;
-          authType = 'internetIdentity';
-          currentProfile = sanitizeProfileData(profile);
+        if (!chedda.isAuthenticated()) {
+          console.log('[Login] Attempting to restore session...');
+          await chedda.restoreSession?.().catch(() => {});
+        }
+
+        const cached = loadProfileFromLocalStorage?.();
+        if (cached && chedda.isAuthenticated()) {
+          console.log('[Login] ⚡ Using cached profile');
+          handleLoginSuccess('cheddaId', cached);
           
-          responseQueue.push({
-            action: 'login',
-            success: true,
-            authType: 'internetIdentity',
-            profile: currentProfile
-          });
-          
-          console.log('[II] ✅ Login successful!');
+          chedda.getProfile().then(profile => {
+            if (profile) {
+              const freshProfile = sanitizeProfileData(profile);
+              currentProfile = freshProfile;
+              saveProfileToLocalStorage(freshProfile);
+              responseQueue.push({
+                action: 'getProfile',
+                success: true,
+                profile: freshProfile
+              });
+            }
+          }).catch(console.error);
+          return;
+        }
+
+        console.log('[Login] Initiating new CheddaID login...');
+        const profile = await chedda.login.cheddaId(nickname);
+        console.log('[Login] ✅ Login complete:', profile);
+        handleLoginSuccess('cheddaId', profile);
+      } catch (error) {
+        console.error('[Login] ❌ Login failed:', error);
+        handleLoginError(error);
+      }
+    };
+
+    window.chedda_login_google = function() {
+      try {
+        console.log('[Bridge] Google login requested');
+        if (window.google?.accounts) {
+          google.accounts.id.prompt();
         } else {
-          throw new Error('Profile not returned from login');
+          handleLoginError({ message: 'Google Sign-In not available' });
         }
       } catch (error) {
-        console.error('[II] Login error:', error);
-        responseQueue.push({
-          action: 'login',
-          success: false,
-          error: error.message || 'Login failed'
-        });
+        handleLoginError(error);
       }
     };
-    
-    /**
-     * Submit a score to the leaderboard
-     * Usage in GDScript: JavaScriptBridge.eval("window.chedda_submit_score(100, 5)")
-     */
-    window.chedda_submit_score = async (score, streak) => {
-      console.log('[Bridge] chedda_submit_score called:', score, streak);
-      
-      if (!chedda || !isAuthenticated) {
-        console.error('[Bridge] Not authenticated');
-        responseQueue.push({
-          action: 'submit_score',
-          success: false,
-          error: 'Not authenticated'
-        });
-        return;
-      }
-      
+
+    window.chedda_login_apple = async function() {
       try {
-        const result = await chedda.submitScore(score, streak);
-        console.log('[Bridge] Score submitted:', result);
-        
-        responseQueue.push({
-          action: 'submit_score',
-          success: result?.success || false,
-          error: result?.error || null
-        });
-        
-        // Refresh profile after score submission
-        try {
-          const profile = await chedda.getProfile();
-          currentProfile = sanitizeProfileData(profile);
-          console.log('[Bridge] Profile updated after score submission:', currentProfile);
-        } catch (error) {
-          console.error('[Bridge] Error refreshing profile:', error);
+        console.log('[Bridge] Apple login requested');
+        if (window.AppleID?.auth) {
+          await AppleID.auth.signIn();
+        } else {
+          handleLoginError({ message: 'Apple Sign-In not available' });
         }
       } catch (error) {
-        console.error('[Bridge] Submit score error:', error);
-        responseQueue.push({
-          action: 'submit_score',
-          success: false,
-          error: error.message || 'Failed to submit score'
-        });
+        handleLoginError(error);
       }
     };
-    
-    /**
-     * Get leaderboard entries
-     * Usage in GDScript: JavaScriptBridge.eval("window.chedda_get_leaderboard('score', 10)")
-     */
-    window.chedda_get_leaderboard = async (sortBy, limit) => {
-      console.log('[Bridge] chedda_get_leaderboard called:', sortBy, limit);
-      
-      if (!chedda) {
-        console.error('[Bridge] Not initialized');
-        responseQueue.push({
-          action: 'leaderboard',
-          success: false,
-          error: 'Not initialized',
-          data: []
-        });
-        return;
-      }
-      
+
+    window.chedda_login_anonymous = async function() {
       try {
-        const leaderboard = await chedda.getLeaderboard(sortBy || 'score', limit || 10);
-        console.log('[Bridge] Leaderboard retrieved:', leaderboard);
-        
-        responseQueue.push({
-          action: 'leaderboard',
-          success: true,
-          data: Array.isArray(leaderboard) ? leaderboard : []
-        });
+        console.log('[Bridge] Anonymous login requested');
+        const profile = await chedda.login.anonymous();
+        handleLoginSuccess('anonymous', profile);
       } catch (error) {
-        console.error('[Bridge] Leaderboard error:', error);
-        responseQueue.push({
-          action: 'leaderboard',
-          success: false,
-          error: error.message || 'Failed to get leaderboard',
-          data: []
-        });
+        handleLoginError(error);
       }
     };
-    
-    /**
-     * Logout current user
-     * Usage in GDScript: JavaScriptBridge.eval("window.chedda_logout()")
-     */
-    window.chedda_logout = async () => {
-      console.log('[Bridge] chedda_logout called');
-      
-      if (!chedda) {
-        return;
-      }
-      
+
+    window.chedda_logout = async function() {
       try {
+        if (!chedda || !chedda.isAuthenticated()) {
+          responseQueue.push({
+            action: 'logout',
+            success: false,
+            error: 'Not authenticated'
+          });
+          return;
+        }
+        
         await chedda.logout();
         isAuthenticated = false;
         authType = '';
         currentProfile = null;
+        cachedProfileData = null;
+        
+        localStorage.removeItem(PROFILE_STORAGE_KEY);
         
         responseQueue.push({
           action: 'logout',
           success: true
         });
-        
-        console.log('[Bridge] Logged out successfully');
       } catch (error) {
-        console.error('[Bridge] Logout error:', error);
         responseQueue.push({
           action: 'logout',
           success: false,
@@ -427,129 +347,381 @@
         });
       }
     };
-    
-    // ============================================================
-    // NICKNAME MODAL FUNCTIONS (Optional)
-    // ============================================================
-    
-    window.submitNickname = function() {
-      const modal = document.getElementById('nickname-modal');
-      const input = document.getElementById('nickname-input');
-      const nickname = input.value.trim();
+
+    window.chedda_refresh_profile = async function() {
+      if (isRefreshingProfile) {
+        console.log('[Bridge] Profile refresh already in progress');
+        return;
+      }
       
-      if (nickname.length >= 2 && nickname.length <= 12) {
-        modal.classList.remove('show');
-        // You can handle the nickname here if needed
-        console.log('[Modal] Nickname submitted:', nickname);
-      } else {
-        alert('Nickname must be 2-12 characters');
+      try {
+        if (!chedda || !chedda.isAuthenticated()) {
+          responseQueue.push({
+            action: 'getProfile',
+            success: false,
+            error: 'Not authenticated'
+          });
+          return;
+        }
+        
+        isRefreshingProfile = true;
+        console.log('[Bridge] Profile refresh requested');
+        
+        const profile = await chedda.getProfile();
+        
+        if (profile) {
+          currentProfile = sanitizeProfileData(profile);
+          saveProfileToLocalStorage(currentProfile);
+          responseQueue.push({
+            action: 'getProfile',
+            success: true,
+            profile: currentProfile
+          });
+        } else {
+          responseQueue.push({
+            action: 'getProfile',
+            success: false,
+            error: 'No profile data'
+          });
+        }
+      } catch (error) {
+        responseQueue.push({
+          action: 'getProfile',
+          success: false,
+          error: error.message
+        });
+      } finally {
+        isRefreshingProfile = false;
       }
     };
 
-    window.cancelNickname = function() {
-      const modal = document.getElementById('nickname-modal');
-      modal.classList.remove('show');
+    window.chedda_submit_score = async function(score, streak) {
+      if (isSubmittingScore) {
+        console.log('[Bridge] Score submission already in progress');
+        return;
+      }
+      
+      try {
+        if (!chedda || !chedda.isAuthenticated()) {
+          responseQueue.push({
+            action: 'submitScore',
+            success: false,
+            error: 'Not authenticated'
+          });
+          return;
+        }
+        
+        isSubmittingScore = true;
+        console.log('[Bridge] Score submission:', score, streak);
+        
+        const result = await chedda.submitScore(score, streak);
+        
+        if (result) {
+          cachedProfileData = null;
+          const profile = await chedda.getProfile();
+          if (profile) {
+            currentProfile = sanitizeProfileData(profile);
+            saveProfileToLocalStorage(currentProfile);
+          }
+          
+          responseQueue.push({
+            action: 'submitScore',
+            success: true,
+            score: score,
+            streak: streak,
+            profile: currentProfile
+          });
+        } else {
+          responseQueue.push({
+            action: 'submitScore',
+            success: false,
+            error: 'Score submission failed'
+          });
+        }
+      } catch (error) {
+        responseQueue.push({
+          action: 'submitScore',
+          success: false,
+          error: error.message
+        });
+      } finally {
+        isSubmittingScore = false;
+      }
     };
 
-    // Enter key support for nickname input
-    document.addEventListener('DOMContentLoaded', () => {
-      const input = document.getElementById('nickname-input');
-      if (input) {
-        input.addEventListener('keypress', (e) => {
-          if (e.key === 'Enter') {
-            submitNickname();
-          }
+    window.chedda_get_leaderboard = async function(sortBy = 'score', limit = 10) {
+      try {
+        if (!chedda || !chedda.isAuthenticated()) {
+          responseQueue.push({
+            action: 'getLeaderboard',
+            success: false,
+            error: 'Not authenticated'
+          });
+          return;
+        }
+        
+        console.log('[Bridge] Leaderboard requested:', sortBy, limit);
+        const leaderboard = await chedda.getLeaderboard(sortBy, limit);
+        
+        if (leaderboard) {
+          responseQueue.push({
+            action: 'getLeaderboard',
+            success: true,
+            leaderboard: leaderboard
+          });
+        } else {
+          responseQueue.push({
+            action: 'getLeaderboard',
+            success: false,
+            error: 'No leaderboard data'
+          });
+        }
+      } catch (error) {
+        responseQueue.push({
+          action: 'getLeaderboard',
+          success: false,
+          error: error.message
         });
       }
-    });
+    };
+
+    window.chedda_get_player_rank = async function(sortBy = 'score') {
+      try {
+        if (!chedda || !chedda.isAuthenticated()) {
+          responseQueue.push({
+            action: 'getPlayerRank',
+            success: false,
+            error: 'Not authenticated'
+          });
+          return;
+        }
+        
+        console.log('[Bridge] Player rank requested:', sortBy);
+        const rank = await chedda.getPlayerRank(sortBy);
+        
+        if (rank) {
+          responseQueue.push({
+            action: 'getPlayerRank',
+            success: true,
+            rank: rank.rank,
+            score: rank.score,
+            streak: rank.streak,
+            totalPlayers: rank.totalPlayers
+          });
+        } else {
+          responseQueue.push({
+            action: 'getPlayerRank',
+            success: false,
+            error: 'No rank data found'
+          });
+        }
+      } catch (error) {
+        responseQueue.push({
+          action: 'getPlayerRank',
+          success: false,
+          error: error.message
+        });
+      }
+    };
+
+    window.chedda_change_nickname_prompt = async function() {
+      try {
+        if (!chedda || !chedda.isAuthenticated()) {
+          responseQueue.push({
+            action: 'changeNickname',
+            success: false,
+            error: 'Not authenticated'
+          });
+          return;
+        }
+        
+        const result = await chedda.changeNicknameWithPrompt();
+        
+        if (result.cancelled) {
+          responseQueue.push({
+            action: 'changeNickname',
+            success: false,
+            cancelled: true
+          });
+        } else if (result.success) {
+          cachedProfileData = null;
+          lastProfileFetch = 0;
+          
+          const profile = await chedda.getProfile();
+          currentProfile = sanitizeProfileData(profile);
+          saveProfileToLocalStorage(currentProfile);
+          
+          responseQueue.push({
+            action: 'changeNickname',
+            success: true,
+            nickname: currentProfile.nickname,
+            profile: currentProfile
+          });
+        } else {
+          responseQueue.push({
+            action: 'changeNickname',
+            success: false,
+            error: result.error
+          });
+        }
+      } catch (error) {
+        responseQueue.push({
+          action: 'changeNickname',
+          success: false,
+          error: error.message
+        });
+      }
+    };
     
     // ============================================================
     // INITIALIZATION
     // ============================================================
     window.addEventListener('load', async () => {
       console.log('[Init] Starting initialization...');
-      
+
       try {
-        // Wait for CheddaBoards to be available
+        // Wait for CheddaBoards SDK
         let attempts = 0;
-        const CheddaBoardsLib = window.CheddaBoards?.default || window.CheddaBoards;
-        
-        while (!CheddaBoardsLib && attempts < 50) {
+        while (!window.CheddaBoards && attempts < 50) {
           await new Promise(resolve => setTimeout(resolve, 100));
           attempts++;
         }
-        
-        if (!CheddaBoardsLib) {
-          throw new Error('CheddaBoards SDK not loaded');
-        }
-        
-        console.log('[Init] CheddaBoards SDK found, initializing...');
-        
-        // Initialize CheddaBoards SDK
-        chedda = await CheddaBoardsLib.init(CONFIG.CANISTER_ID, {
+
+        if (!window.CheddaBoards) throw new Error('CheddaBoards SDK not loaded');
+
+        // Initialize SDK
+        console.log('[Init] Initializing CheddaBoards...');
+        chedda = await window.CheddaBoards.init(CONFIG.CANISTER_ID, {
           gameId: CONFIG.GAME_ID,
           gameName: CONFIG.GAME_NAME,
           host: CONFIG.ICP_HOST,
           autoInit: true
         });
-        
-        window.chedda = chedda; // Expose for debugging
-        console.log('[Init] ✅ CheddaBoards initialized:', chedda);
-        
-        // Check for existing auth
+
+        window.chedda = chedda;
+        console.log('[Init] ✅ CheddaBoards initialized');
+
+        // Check existing authentication
         if (chedda.isAuthenticated()) {
           console.log('[Init] User is authenticated');
           isAuthenticated = true;
           authType = chedda.getAuthType ? chedda.getAuthType() : 'unknown';
-          
-          try {
-            const profile = await chedda.getProfile();
-            console.log('[Init] Profile found:', profile);
-            currentProfile = sanitizeProfileData(profile);
-            
+
+          const cachedProfile = loadProfileFromLocalStorage();
+          if (cachedProfile) {
+            currentProfile = cachedProfile;
+            console.log('[Init] ⚡ Instant profile from localStorage');
             responseQueue.push({
               action: 'init',
               success: true,
               authenticated: true,
-              authType: authType,
+              authType,
               profile: currentProfile
             });
-          } catch (error) {
-            console.error('[Init] Error fetching profile:', error);
+          } else {
+            responseQueue.push({
+              action: 'init',
+              success: true,
+              authenticated: true,
+              authType,
+              profile: null
+            });
           }
-        } else {
-          console.log('[Init] User not authenticated');
-          responseQueue.push({
-            action: 'init',
-            success: true,
-            authenticated: false
-          });
+
+          // Refresh profile in background
+          chedda.getProfile().then(profile => {
+            if (profile) {
+              currentProfile = sanitizeProfileData(profile);
+              saveProfileToLocalStorage(currentProfile);
+              responseQueue.push({
+                action: 'getProfile',
+                success: true,
+                profile: currentProfile
+              });
+            }
+          }).catch(console.error);
         }
-        
+
+        // Initialize Google Sign-In (if configured)
+        if (CONFIG.GOOGLE_CLIENT_ID && window.google?.accounts) {
+          google.accounts.id.initialize({
+            client_id: CONFIG.GOOGLE_CLIENT_ID,
+            callback: async (response) => {
+              try {
+                const profile = await chedda.login.google(response.credential);
+                handleLoginSuccess('google', profile);
+              } catch (error) {
+                handleLoginError(error);
+              }
+            },
+            auto_select: false,
+            cancel_on_tap_outside: true
+          });
+          console.log('[Init] ✅ Google Sign-In initialized');
+        }
+
+        // Initialize Apple Sign-In (if configured)
+        if (CONFIG.APPLE_SERVICE_ID && window.AppleID?.auth) {
+          AppleID.auth.init({
+            clientId: CONFIG.APPLE_SERVICE_ID,
+            scope: 'name email',
+            redirectURI: CONFIG.APPLE_REDIRECT_URI,
+            state: 'signin',
+            usePopup: true
+          });
+
+          document.addEventListener('AppleIDSignInOnSuccess', async (event) => {
+            try {
+              const auth = event.detail?.authorization;
+              console.log('🍎 Apple auth response:', auth);
+
+              if (!auth?.id_token) throw new Error("Missing id_token");
+
+              const profile = await chedda.login.apple(auth);
+              handleLoginSuccess('apple', profile);
+            } catch (error) {
+              console.error('[Apple] Sign-In Error:', error);
+              handleLoginError(error);
+            }
+          });
+
+          document.addEventListener('AppleIDSignInOnFailure', (event) => {
+            console.warn('[Apple] Sign-In Failed:', event);
+            handleLoginError({ message: 'Apple Sign-In failed' });
+          });
+
+          console.log('[Init] ✅ Apple Sign-In initialized');
+        }
+
+        // Initialize Godot engine
+        const engine = new Engine({
+          canvasResizePolicy: 2,
+          executable: 'index',
+          fileSizes: { 'index.pck': 0, 'index.wasm': 0 },
+          focusCanvas: true,
+          canvas: document.getElementById('canvas')
+        });
+
+        await engine.startGame();
+        window.godot = engine;
+        godotReady = true;
+        console.log('[Init] ✅ Godot engine started');
+
         // Hide preloader
         setTimeout(() => {
-          document.getElementById('preload').classList.add('fade');
-          setTimeout(() => {
-            document.getElementById('preload')?.remove();
-          }, 500);
+          const preload = document.getElementById('preload');
+          preload?.classList.add('fade');
+          setTimeout(() => preload?.remove(), 500);
         }, 500);
-        
+
         console.log('[Init] ✅ All systems ready!');
-        
       } catch (error) {
         console.error('[Init] Initialization failed:', error);
-        document.querySelector('.loading-text').textContent = 'Error loading game: ' + error.message;
+        document.querySelector('.loading-text').textContent = 'Error loading game';
       }
     });
     
-    // ============================================================
-    // DEBUG HELPER
-    // ============================================================
-    
-    /**
-     * Debug helper function
-     * Usage in browser console: debugChedda()
-     */
+    // Debug helper
     window.debugChedda = () => {
       console.log('🔍 CheddaBoards Debug:');
       console.log('- Instance:', chedda);
@@ -557,33 +729,8 @@
       console.log('- Auth Type:', authType);
       console.log('- Profile:', currentProfile);
       console.log('- Response Queue:', responseQueue);
-      console.log('- Config:', CONFIG);
       return chedda;
     };
-  </script>
-  
-  <!-- Godot Engine Start (replace with your actual Godot config) -->
-  <script>
-    // This will be auto-generated by Godot when you export
-    // Replace these values with your actual game's configuration
-    const GODOT_CONFIG = {
-      "args": [],
-      "canvasResizePolicy": 2,
-      "executable": "index",
-      "experimentalVK": false,
-      "focusCanvas": true,
-      "gdextensionLibs": []
-    };
-    
-    const engine = new Engine(GODOT_CONFIG);
-
-    (function () {
-      engine.startGame().then(() => {
-        console.log('[Godot] Game started successfully');
-      }).catch((err) => {
-        console.error('[Godot] Failed to start:', err);
-      });
-    }());
   </script>
 </body>
 </html>
