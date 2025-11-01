@@ -59,8 +59,8 @@ const leaders = await chedda.getLeaderboard('score', 10);
 
 ## 🚀 Features
 
-✅ **Multi-auth:** Google, Apple, Quick Start (passwordless, ii)
-✅ **Cross-platform:** Godot 3x/4x, HTML5, JavaScript, Unity(in development)
+✅ **Multi-auth:** Google, Apple, CheddaId(free, passwordless, uses internet identity authentication layer, 2 minute setup (no data needed))
+✅ **Cross-platform:** Godot 3x/4x Web Export HTML5, Unity SDK in production, REST API in production
 ✅ **One-line init:** No complex setup  
 ✅ **Open source:** Infrastructure you can audit & self-host  
 ✅ **Anti-cheat:** Built-in validation & rate limiting  
@@ -103,9 +103,9 @@ Your Game → CheddaBoards SDK → Backend → Permanent Storage
 
 ## 🔐 Authentication Options
 
-### Quick Start (Passwordless)
+### CheddaId (Passwordless)
 ```javascript
-await chedda.login.ii('PlayerNickname');
+await chedda.login.chedda_login_cheddaid('PlayerNickname');
 ```
 No passwords. No setup. Works like FaceID/TouchID for web.
 
@@ -162,7 +162,7 @@ const chedda = await CheddaBoards.init('your-canister-id', {
 
 ## 🎮 Live Example
 
-**The Cheese Game** — Pac-Man meets modern retro chaos, powered by CheddaBoards.
+**The Cheese Game** — Pac-Man inspired modern retro chaos, powered by CheddaBoards.
 
 👉 [Play it now](https://thecheesegame.online)
 
