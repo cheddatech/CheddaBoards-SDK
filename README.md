@@ -1,8 +1,8 @@
-# CheddaBoards 🧀
+# CheddaBoards 🧀  
+**Post-Infrastructure gaming backend for indie developers. Zero DevOps.**
 
-**Post-Infastructure gaming backend for indie developers. Zero DevOps.**
-
-Drop-in SDK for leaderboards, achievements, and player profiles built on Internet Computer Protocol.
+Drop-in leaderboards, achievements, player profiles, and analytics - all powered by ICP canisters.  
+**No servers. No databases. No maintenance.**
 
 [![Live Demo](https://img.shields.io/badge/demo-The%20Cheese%20Game-yellow)](https://thecheesegame.online)
 [![Website](https://img.shields.io/badge/website-cheddaboards.com-blue)](https://cheddaboards.com)
@@ -12,77 +12,73 @@ Drop-in SDK for leaderboards, achievements, and player profiles built on Interne
 
 ## 🎮 What is CheddaBoards?
 
-CheddaBoards gives indie game developers **permanent, serverless infrastructure** for:
-- 🏆 **Leaderboards** (global & filtered by auth type)
-- 👤 **Player profiles** (persistent across games)
-- 🎯 **Achievements** (unlock & track)
-- 📊 **Analytics** (player behavior & engagement)
+CheddaBoards provides **permanent, serverless backend features** for browser-based games:
 
-**Free tier:** 3 games per developer, unlimited players.  
-**No servers.** No databases. No maintenance.
+- 🏆 **Server-validated leaderboards**
+- 👤 **Cross-game player profiles**
+- 🎯 **Achievements**
+- 📊 **Analytics**
+- 🔐 **Multi-auth:** Google, Apple, Internet Identity (via CheddaID)
+
+Built entirely on the **Internet Computer**, with predictable costs and no DevOps overhead.
+
+> **Free Tier:** 3 games per developer — *unlimited players*.
 
 ---
 
 ## ⚡ Quick Start
 
-### 1. Install the SDK
+### 1. Include the SDK
 
 ```html
-<!-- Option 1: CDN -->
+<!-- CDN -->
 <script src="https://cdn.jsdelivr.net/npm/cheddaboards_v1@1/cheddaboards.min.js"></script>
-
-<!-- Option 2: Local -->
-<script src="./js/cheddaboards.min.js"></script>
 ```
 
-### 2. Initialize & Play
+### 2. Initialize & Use
 
 ```javascript
-// Initialize (one line!)
+// Initialize
 const chedda = await CheddaBoards.init(null, {
-  gameId: 'my-cheese-game'  // Your registered game ID
+  gameId: 'my-game-id'
 });
 
-// Player login (Google, Apple, or Quick Start)
-await chedda.login.google(googleCredential);
+// Login (Google, Apple, or CheddaID)
+await chedda.loginGoogle(googleCredential, 'Nickname');
 
-// Submit scores
+// Submit score
 await chedda.submitScore(1000, 50);
 
-// Get leaderboard
+// Fetch leaderboard
 const leaders = await chedda.getLeaderboard('score', 10);
 ```
 
-**That's it!** No backend setup. No database config. Just works.
+That’s it - **no backend setup, no database, no scaling issues.**
 
 ---
 
 ## 🚀 Features
 
-✅ **Multi-auth:** Google, Apple, CheddaId(free, passwordless, uses internet identity authentication layer, 2 minute setup (no data needed))
-✅ **Cross-platform:** Godot 3x/4x Web Export HTML5, Unity SDK in production, REST API in production
-✅ **One-line init:** No complex setup  
-✅ **Open source:** Infrastructure you can audit & self-host  
-✅ **Anti-cheat:** Built-in validation & rate limiting  
-✅ **Free tier:** 3 games, unlimited players  
+- ✅ **Multi-Auth:** Google, Apple, CheddaID (passwordless + II-backed)  
+- ✅ **Godot 3/4 HTML5 support**  
+- 🚧 Unity SDK (in development)  
+- 🚧 REST API (in development)  
+- 🛡️ **Anti-cheat validation + rate limiting**  
+- 🔓 **Open source + self-hostable**  
+- 🧪 **One-line initialization**  
+- 🆓 **Free forever tier (3 games, unlimited players)**  
 
 ---
 
-## 📦 What's Included
+## 📦 Repository Structure
 
 ```
-CheddaBoards-SDK/
-├── dist/
-│   └── cheddaboards.min.js    # Ready-to-use SDK
-├── src/
-│   ├── sdk/
-│   │   └── index.js           # SDK source code
-│   └── backend/
-│       └── main.mo            # Backend canister (Motoko)
-├── examples/
-│   ├── html/                  # Browser game example
-│   ├── godot/                 # Godot integration
-│   └── unity/                 # Unity (in development)
+cheddaboards/
+├── dist/               # Production-ready JS SDK
+├── src/                
+│   ├── sdk/            # SDK source
+│   └── backend/        # Motoko canister backend
+├── examples/           # HTML5 & Godot examples
 └── README.md
 ```
 
@@ -91,142 +87,109 @@ CheddaBoards-SDK/
 ## 🎯 How It Works
 
 ```
-Your Game → CheddaBoards SDK → Backend → Permanent Storage
+Your Game → CheddaBoards SDK → ICP Canisters → Permanent Storage
 ```
 
-1. **You:** Integrate SDK with one line of code
-2. **We:** Provide serverless backend infrastructure
-3. **ICP:** Handles permanent, distributed storage
-4. **Players:** Get unified profiles across all CheddaBoards games
+1. You call `CheddaBoards.init()`.  
+2. The SDK connects to the hosted or self-hosted canister.  
+3. All leaderboard/achievements/auth logic runs on-chain.  
+4. Players keep a unified profile across all CheddaBoards-powered games.
 
 ---
 
-## 🔐 Authentication Options
+## 🔐 Authentication
 
-### CheddaId (Passwordless)
-```javascript
-await chedda.login.chedda_login_cheddaid('PlayerNickname');
-```
-No passwords. No setup. Works like FaceID/TouchID for web.
+### CheddaID (II-Backed Passwordless Login)
 
-### Google Sign-In
 ```javascript
-await chedda.login.google(googleCredential, 'PlayerNickname');
-```
-Requires your own Google OAuth credentials.
+await chedda.loginChedda('Nickname');
 
-### Apple Sign-In
-```javascript
-await chedda.login.apple(appleResponse, 'PlayerNickname');
 ```
-Requires your own Apple Developer account.
+
+No passwords, no email required.  
+Uses Internet Identity under the hood.
+
+### Google Login
+```javascript
+await chedda.loginGoogle(googleCredential, 'Nickname');
+```
+
+### Apple Login
+```javascript
+await chedda.loginApple(appleResponse, 'Nickname');
+```
 
 ---
 
 ## 📊 Pricing
 
-### Free Tier (Forever)
-- ✅ **3 games** per developer
-- ✅ **Unlimited players** per game
-- ✅ **All auth types** included
-- ✅ **30-day analytics** retention
-- ✅ **No credit card** required
+### **Free Forever**
+- 3 games per developer  
+- Unlimited players  
+- All auth types included  
+- 30-day analytics retention  
 
-### Need More?
-- 📧 Contact: [info@cheddaboards.com](mailto:info@cheddaboards.com)
-- 🌐 Visit: [cheddaboards.com](https://cheddaboards.com)
+For extended plans:  
+📧 **info@cheddaboards.com**
 
 ---
 
-## 🛠️ Self-Hosting
-
-Want to run your own backend? Deploy to ICP:
+## 🛠️ Self-Hosting on ICP
 
 ```bash
-# Clone the repo
-git clone https://github.com/cheddatech/CheddaBoards-SDK.git
-cd CheddaBoards-SDK
-
-# Deploy to ICP with your cycles
+git clone https://github.com/cheddatech/cheddaboards.git
+cd cheddaboards
 dfx deploy --network ic
+```
 
-# Use your canister
+```javascript
 const chedda = await CheddaBoards.init('your-canister-id', {
   gameId: 'your-game'
 });
 ```
 
-**All backend code is open source.** No vendor lock-in.
-
 ---
 
 ## 🎮 Live Example
 
-**The Cheese Game** — Pac-Man inspired modern retro chaos, powered by CheddaBoards.
+**The Cheese Game**  
+Retro chaos powered entirely by CheddaBoards.
 
-👉 [Play it now](https://thecheesegame.online)
-
-See CheddaBoards working in production with real leaderboards, achievements, and player profiles.
+👉 https://thecheesegame.online
 
 ---
 
 ## 📚 Documentation
 
-- 🌐 **Website:** [cheddaboards.com](https://cheddaboards.com)
-- 📖 **Full API Docs:** [github.com/cheddatech/CheddaBoards-SDK](https://github.com/cheddatech/CheddaBoards-SDK)
-- 🎮 **Examples:** See `/examples` folder
-- 💬 **Support:** [GitHub Issues](https://github.com/cheddatech/CheddaBoards-SDK/issues)
+- Website: https://cheddaboards.com  
+- Docs: https://docs.cheddaboards.com (coming this week)
+- Examples: `/examples`  
+- Issues: GitHub issue tracker  
 
 ---
 
 ## 🤝 Contributing
 
-We welcome contributions! CheddaBoards is open source because we believe gaming infrastructure should be transparent and community-owned.
-
-1. Fork the repo
-2. Create a feature branch
-3. Submit a pull request
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
----
-
-## ❓ FAQ
-
-### Is this really free?
-Yes! Free forever for 3 games per developer with unlimited players. The SDK is open source and infrastructure runs on ICP's serverless compute.
-
-### What if CheddaBoards shuts down?
-Your data lives on permanent ICP infrastructure. You can self-host the backend (it's open source) or use any community deployment. No vendor lock-in.
-
-### How is this different from Firebase/PlayFab?
-- **Cost:** Free tier vs. $50-5000/mo
-- **Lock-in:** Self-hostable vs. proprietary
-- **Storage:** Permanent distributed compute vs. centralized servers
-
-### What platforms are supported?
-- ✅ **Godot** (HTML5 export)
-- ✅ **JavaScript/HTML5** (any framework)
-- 🚧 **Unity** (WebGL, in development)
-- 🚧 **React** (coming soon)
+Contributions welcome!  
+CheddaBoards is open source because gaming infrastructure should be transparent and community-owned.
 
 ---
 
 ## 📜 License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT License — see `LICENSE`.
 
 ---
 
 ## 🔗 Links
 
-- 🌐 **Website:** [cheddaboards.com](https://cheddaboards.com)
-- 🏢 **Company:** [cheddatech.com](https://cheddatech.com)
-- 🎮 **Games:** [cheddagames.com](https://cheddagames.com)
-- 🧀 **Demo:** [thecheesegame.online](https://thecheesegame.online)
-- 🐦 **Twitter:** [@cheddatech](https://x.com/cheddatech) • [@chedda86](https://x.com/chedda86)
-- 📧 **Email:** [info@cheddaboards.com](mailto:info@cheddaboards.com)
+- Website — cheddaboards.com  
+- Company — cheddatech.com  
+- Games — cheddagames.com  
+- Twitter — @cheddatech  
+- Email — info@cheddaboards.com  
 
 ---
 
-**Built by [CheddaTech Ltd](https://cheddatech.com) on Internet Computer Protocol.**
+**Built by CheddaTech Ltd on the Internet Computer.**
+
