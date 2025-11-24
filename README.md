@@ -32,7 +32,8 @@ Built entirely on the **Internet Computer**, with predictable costs and no DevOp
 
 ```html
 <!-- CDN -->
-<script src="https://cdn.jsdelivr.net/npm/cheddaboards_v1@1/cheddaboards.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/cheddaboards_v1@1.0.2/cheddaboards.min.js"></script>
+
 ```
 
 ### 2. Initialize & Use
