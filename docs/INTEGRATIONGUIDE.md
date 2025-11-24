@@ -154,17 +154,13 @@ cd CheddaBoards-SDK/godot4
 
 ```javascript
 // ⚠️ CONFIGURE YOUR GAME HERE ⚠️
+// Get your Game ID from: https://cheddaboards.com
 const game = await CheddaBoards.init('fdvph-sqaaa-aaaap-qqc4a-cai', {
-    gameId: 'YOUR-GAME-ID',              // ⬅️ PUT YOUR GAME ID FROM STEP 1
-    gameName: 'My Awesome Game',          // ⬅️ YOUR GAME NAME
-    gameDescription: 'A cool game'        // ⬅️ YOUR DESCRIPTION
+    gameId: 'YOUR-GAME-ID'  // ⬅️ PUT YOUR GAME ID FROM STEP 1
 });
 ```
 
-4. Replace:
-   - `YOUR-GAME-ID` → Your Game ID from Step 1
-   - `gameName` → Your game's name
-   - `gameDescription` → Your description
+4. Replace `YOUR-GAME-ID` with your Game ID from Step 1
 
 5. **Save** the file
 
@@ -273,10 +269,8 @@ In `cheddaboards.html`:
 
 ```javascript
 const game = await CheddaBoards.init('fdvph-sqaaa-aaaap-qqc4a-cai', {
-    gameId: 'my-game-v1',           // Required: From dashboard
-    gameName: 'My Awesome Game',     // Required: Display name
-    gameDescription: 'A cool game',  // Optional but recommended
-    autoInit: true                   // Optional: Auto-initialize on load
+    gameId: 'my-game-v1',  // Required: From dashboard registration
+    autoInit: true         // Optional: Auto-initialize on load (default: true)
 });
 ```
 
@@ -1669,4 +1663,4 @@ SOFTWARE.
 
 **Questions? Email info@cheddaboards.com**
 
-**Ready to add CheddaBoards to your game? Start at https://cheddaboards.com** 🚀
+**Ready to add leaderboards and player profiles to your game? Start at https://cheddaboards.com** 🚀
