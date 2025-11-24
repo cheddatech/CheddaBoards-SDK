@@ -1,4 +1,4 @@
-// ======================= Imports =======================
+ // ======================= Imports =======================
 import { Actor, HttpAgent, AnonymousIdentity } from "@dfinity/agent";
 import { AuthClient } from "@dfinity/auth-client";
 import { idlFactory } from "../declarations/cheddaboards_v2_backend/cheddaboards_v2_backend.did.js";
@@ -13,11 +13,11 @@ function topOrigin() {
   return window.location.origin;
 }
 
+// Preload AuthClient once so the click handler has no await before .login()
 (async () => {
   try {
     if (!window.cheddaAuthClient) {
       window.cheddaAuthClient = await AuthClient.create();
-      console.log("[CheddaBoards] AuthClient preloaded");
     }
   } catch (e) {
     console.error("[CheddaBoards] Failed to create AuthClient early:", e);
@@ -25,7 +25,6 @@ function topOrigin() {
 })();
 
 // ======================= Class =======================
-
 class CheddaBoards {
   constructor(config = {}) {
     if (!config.gameId) {
@@ -34,11 +33,9 @@ class CheddaBoards {
       );
     }
 
-    if (!config.canisterId) {
-      throw new Error('[CheddaBoards] canisterId is required');
-    }
-    
-    this.canisterId = config.canisterId;
+    // DEVELOPERS: Replace with your own canister ID after deployment
+    this.canisterId =
+      config.canisterId || "YOUR_CANISTER_ID_HERE";
     this.gameId = config.gameId;
     this.gameName = config.gameName || "Unnamed Game";
     this.gameDescription = config.gameDescription || "CheddaBoards SDK";
@@ -46,7 +43,6 @@ class CheddaBoards {
       config.host || (this._isLocal() ? "http://localhost:4943" : "https://icp-api.io");
     this.autoInit = config.autoInit === true;
     this.config = config;
-    this.verifierUrl = config.verifierUrl || null;
 
     // identity/auth
     this.actor = null;
@@ -57,9 +53,9 @@ class CheddaBoards {
 
     // session and auth state
     this.sessionId = null;
-    this.userType = null;
+    this.userType = null; // "principal" or "email"
     this.userId = null; // principal text or email
-    this.authType = null;
+    this.authType = null; // "cheddaId" | "google" | "apple" | null
     this.authData = null;
 
     // flags
@@ -100,6 +96,7 @@ class CheddaBoards {
         // Try to restore session/auth
         await this._restoreSession();
 
+        // Load profile if authenticated
         if (this.userType) {
           const profile = await this.loadProfile();
           if (profile && typeof window !== "undefined" && window.emitToGodot) {
@@ -133,14 +130,11 @@ class CheddaBoards {
 
     try {
       const auth = JSON.parse(storedAuth);
-      console.log("[CheddaBoards] Found stored auth:", auth.authType);
 
       if (auth.sessionId) {
-        
         // legacy/email path
         const validation = await this.actor.validateSession(auth.sessionId);
         if (validation && validation.ok) {
-          console.log("[CheddaBoards] Session still valid");
           Object.assign(this, {
             sessionId: auth.sessionId,
             authData: auth,
@@ -149,7 +143,6 @@ class CheddaBoards {
             authType: auth.authType,
           });
         } else {
-          console.log("[CheddaBoards] Session expired, clearing auth");
           sessionStorage.removeItem("chedda_auth");
         }
       } else {
@@ -164,7 +157,6 @@ class CheddaBoards {
         }
       }
 
-      console.log("[CheddaBoards] Session restored");
     } catch (e) {
       console.error("[CheddaBoards] Session restoration failed:", e);
       sessionStorage.removeItem("chedda_auth");
@@ -177,11 +169,9 @@ class CheddaBoards {
       const isAuthenticated = await this.authClient.isAuthenticated();
 
       if (isAuthenticated) {
-        console.log("[CheddaBoards] Chedda ID session still valid");
         this.identity = this.authClient.getIdentity();
         await this._createActor({ identity: this.identity });
       } else {
-        console.log("[CheddaBoards] Chedda ID session expired");
         sessionStorage.removeItem("chedda_auth");
         this.identity = new AnonymousIdentity();
         this.userType = null;
@@ -219,8 +209,22 @@ class CheddaBoards {
     return nickname ? nickname.trim() : null;
   }
 
+  async _getSuggestedNickname() {
+  try {
+    if (!this.actor) await this._createActor({ identity: this.identity });
+    const result = await this.actor.suggestNickname();
+    if (result?.ok) {
+      return result.ok;  // Returns "Player_X"
+    }
+    // Fallback if backend call fails
+    return `Player_${Math.floor(Math.random() * 10000)}`;
+  } catch (e) {
+    console.error("[CheddaBoards] Failed to get nickname suggestion:", e);
+    return `Player_${Math.floor(Math.random() * 10000)}`;
+  }
+}
+
   // =================== Game Registration / Slots ===================
-  
   async registerGame(gameName, gameDescription, rules = {}) {
     try {
       const ac = this.authClient || window.cheddaAuthClient;
@@ -278,109 +282,274 @@ class CheddaBoards {
   }
 
   // =================== AUTH: Internet Identity ===================
-  
   async loginChedda(nickname = null) {
-    console.log("[CheddaBoards] Starting Chedda ID login...");
+  console.log("[CheddaBoards] Starting Chedda ID login...");
 
-    this.authClient = window.cheddaAuthClient || (await AuthClient.create());
+  this.authClient = window.cheddaAuthClient || (await AuthClient.create());
 
-    if (this._iiInFlight) {
-      console.warn("[CheddaBoards] II login already in progress");
-      return Promise.reject("login_in_flight");
-    }
-    this._iiInFlight = true;
-
-    return new Promise((resolve, reject) => {
-      this.authClient.login({
-        identityProvider: "https://identity.ic0.app",
-        derivationOrigin: topOrigin(), // critical for embedded/custom domains
-        maxTimeToLive: 7n * 24n * 60n * 60n * 1_000_000_000n, // 7 days
-
-        onSuccess: async () => {
-          try {
-            console.log("[CheddaBoards] ✅ II authentication successful");
-            this.identity = this.authClient.getIdentity();
-            const principalText = this.identity.getPrincipal().toText();
-            console.log("[CheddaBoards] Principal:", principalText);
-
-            await this._createActor({ identity: this.identity });
-
-            const tempNick = `Chedda${Math.floor(Math.random() * 10000)}`;
-            const finalNickname = nickname || tempNick;
-
-            console.log("[CheddaBoards] Calling backend login...");
-            const batchResult = await this.actor.iiLoginAndGetProfile(finalNickname, this.gameId);
-console.log("[CheddaBoards] Backend login result:", batchResult);
-
-if (batchResult?.err) throw new Error(batchResult.err);
-
-const data = batchResult.ok;
-if (!data) throw new Error("No data returned from backend");
-
-this.userType = "principal";
-this.userId = principalText;
-this.authType = "cheddaId";
-this.sessionId = null;
-this.authData = {
-  userType: "principal",
-  userId: principalText,
-  authType: "cheddaId",
-  nickname: data.nickname,
-};
-sessionStorage.setItem("chedda_auth", JSON.stringify(this.authData));
-sessionStorage.setItem("auth_method", "cheddaId");
-
-this.profile = {
-  nickname: data.nickname,
-  score: data.gameProfile ? Number(data.gameProfile.total_score || 0) : 0,
-  streak: data.gameProfile ? Number(data.gameProfile.best_streak || 0) : 0,
-  achievements: data.gameProfile ? data.gameProfile.achievements : [],
-  lastPlayed: data.gameProfile ? data.gameProfile.last_played : undefined,
-  playCount: data.gameProfile ? Number(data.gameProfile.play_count || 0) : 0,
-  gameId: this.gameId,
-  authType: "cheddaId",
-};
-
-            if (typeof window !== "undefined" && window.emitToGodot) {
-              window.emitToGodot(
-                "chedda_id_login_success",
-                this.profile.nickname,
-                String(this.profile.score || 0),
-                String(this.profile.streak || 0),
-                JSON.stringify(this.profile.achievements || [])
-              );
-            }
-
-            console.log("[CheddaBoards] Chedda ID login complete:", this.profile.nickname);
-            this._iiInFlight = false;
-            resolve(this.profile);
-          } catch (e) {
-            console.error("[CheddaBoards] Chedda ID login error:", e);
-            this._iiInFlight = false;
-            reject(e);
-          }
-        },
-
-        onError: (error) => {
-          console.error("[CheddaBoards] Chedda ID authentication failed:", error);
-          this._iiInFlight = false;
-          reject(error);
-        },
-      });
-    });
+  if (this._iiInFlight) {
+    console.warn("[CheddaBoards] II login already in progress");
+    return Promise.reject("login_in_flight");
   }
+  this._iiInFlight = true;
 
-  // =================== AUTH: Google ===================
-  
-  async loginGoogle(googleCredential, nickname = null) {
+  return new Promise((resolve, reject) => {
+    this.authClient.login({
+      identityProvider: "https://identity.ic0.app",
+      derivationOrigin: topOrigin(),
+      maxTimeToLive: 7n * 24n * 60n * 60n * 1_000_000_000n,
+
+      onSuccess: async () => {
+        try {
+          console.log("[CheddaBoards] ✅ II authentication successful");
+          this.identity = this.authClient.getIdentity();
+          const principalText = this.identity.getPrincipal().toText();
+          console.log("[CheddaBoards] Principal:", principalText);
+
+          await this._createActor({ identity: this.identity });
+
+          this.userType = "principal";
+          this.userId = principalText;
+          this.authType = "cheddaId";
+          this.sessionId = null;
+
+          const tempNick = `Chedda${Math.floor(Math.random() * 10000)}`;
+          
+          const batchResult = await this.actor.iiLoginAndGetProfile(tempNick, this.gameId);
+          console.log("[CheddaBoards] Backend login result:", batchResult);
+
+          if (batchResult?.err) throw new Error(batchResult.err);
+
+          const data = batchResult.ok;
+          if (!data) throw new Error("No data returned from backend");
+
+          const isNewUser = !data.nickname || data.nickname.startsWith('Chedda') || data.nickname.startsWith('Player_');
+          let finalNickname = data.nickname || tempNick;
+
+          console.log("[CheddaBoards] Is new user:", isNewUser, "Current nickname:", finalNickname);
+
+          if (isNewUser && !nickname) {
+            const suggestion = await this._getSuggestedNickname();
+            const customNick = this._promptForNickname(suggestion);
+            if (customNick && customNick.trim() && customNick !== suggestion) {
+              console.log("[CheddaBoards] Changing nickname from", finalNickname, "to", customNick.trim());
+              
+              const changeResult = await this.actor.changeNicknameAndGetProfile(
+                "principal",           // userIdType
+                principalText,         // userId
+                customNick.trim(),     // newNickname
+                this.gameId            // gameId
+              );
+              
+              console.log("[CheddaBoards] Change nickname result:", changeResult);
+              
+              if (changeResult?.ok) {
+                finalNickname = changeResult.ok.nickname;
+                
+                // Update data with returned profile
+                if (changeResult.ok.gameProfile) {
+                  Object.assign(data, {
+                    nickname: changeResult.ok.nickname,
+                    gameProfile: changeResult.ok.gameProfile
+                  });
+                }
+              } else {
+                console.warn("[CheddaBoards] Nickname change failed, using:", finalNickname);
+              }
+            } else if (customNick && customNick.trim() === suggestion) {
+              // User accepted the suggestion, no need to call backend
+              finalNickname = suggestion;
+            }
+          } else if (nickname) {
+            finalNickname = nickname;
+          }
+
+          this.authData = {
+            userType: "principal",
+            userId: principalText,
+            authType: "cheddaId",
+            nickname: finalNickname,
+          };
+          sessionStorage.setItem("chedda_auth", JSON.stringify(this.authData));
+          sessionStorage.setItem("auth_method", "cheddaId");
+
+          this.profile = {
+            nickname: finalNickname,
+            score: data.gameProfile ? Number(data.gameProfile.total_score || 0) : 0,
+            streak: data.gameProfile ? Number(data.gameProfile.best_streak || 0) : 0,
+            achievements: data.gameProfile ? data.gameProfile.achievements : [],
+            lastPlayed: data.gameProfile ? data.gameProfile.last_played : undefined,
+            playCount: data.gameProfile ? Number(data.gameProfile.play_count || 0) : 0,
+            gameId: this.gameId,
+            authType: "cheddaId",
+          };
+
+          if (typeof window !== "undefined" && window.emitToGodot) {
+            window.emitToGodot(
+              "chedda_id_login_success",
+              this.profile.nickname,
+              String(this.profile.score || 0),
+              String(this.profile.streak || 0),
+              JSON.stringify(this.profile.achievements || [])
+            );
+          }
+
+          this._iiInFlight = false;
+          resolve(this.profile);
+        } catch (e) {
+          console.error("[CheddaBoards] Chedda ID login error:", e);
+          this._iiInFlight = false;
+          reject(e);
+        }
+      },
+
+      onError: (error) => {
+        console.error("[CheddaBoards] Chedda ID authentication failed:", error);
+        this._iiInFlight = false;
+        reject(error);
+      },
+    });
+  });
+}
+
+ async loginII2(nickname = null) {
+  console.log("[CheddaBoards] Starting Internet Identity 2.0 login...");
+
+  this.authClient = window.cheddaAuthClient || (await AuthClient.create());
+
+  if (this._iiInFlight) {
+    console.warn("[CheddaBoards] II 2.0 login already in progress");
+    return Promise.reject("login_in_flight");
+  }
+  this._iiInFlight = true;
+
+  return new Promise((resolve, reject) => {
+    this.authClient.login({
+      identityProvider: "https://identity.internetcomputer.org",
+      derivationOrigin: topOrigin(),
+      maxTimeToLive: 7n * 24n * 60n * 60n * 1_000_000_000n,
+
+      onSuccess: async () => {
+        try {
+          console.log("[CheddaBoards] ✅ II 2.0 authentication successful");
+          this.identity = this.authClient.getIdentity();
+          const principalText = this.identity.getPrincipal().toText();
+          console.log("[CheddaBoards] Principal:", principalText);
+
+          await this._createActor({ identity: this.identity });
+
+          this.userType = "principal";
+          this.userId = principalText;
+          this.authType = "cheddaId";
+          this.sessionId = null;
+
+          const tempNick = `Chedda${Math.floor(Math.random() * 10000)}`;
+          
+          const batchResult = await this.actor.iiLoginAndGetProfile(tempNick, this.gameId);
+          console.log("[CheddaBoards] Backend login result:", batchResult);
+
+          if (batchResult?.err) throw new Error(batchResult.err);
+
+          const data = batchResult.ok;
+          if (!data) throw new Error("No data returned from backend");
+
+          const isNewUser = !data.nickname || data.nickname.startsWith('Chedda') || data.nickname.startsWith('Player_');
+          let finalNickname = data.nickname || tempNick;
+
+          console.log("[CheddaBoards] Is new user:", isNewUser, "Current nickname:", finalNickname);
+
+          if (isNewUser && !nickname) {
+            const suggestion = await this._getSuggestedNickname();
+            const customNick = this._promptForNickname(suggestion);
+            if (customNick && customNick.trim() && customNick !== suggestion) {
+              console.log("[CheddaBoards] Changing nickname from", finalNickname, "to", customNick.trim());
+              
+              const changeResult = await this.actor.changeNicknameAndGetProfile(
+                "principal",           // userIdType
+                principalText,         // userId
+                customNick.trim(),     // newNickname
+                this.gameId            // gameId
+              );
+              
+              console.log("[CheddaBoards] Change nickname result:", changeResult);
+              
+              if (changeResult?.ok) {
+                finalNickname = changeResult.ok.nickname;
+                
+                // Update data with returned profile
+                if (changeResult.ok.gameProfile) {
+                  Object.assign(data, {
+                    nickname: changeResult.ok.nickname,
+                    gameProfile: changeResult.ok.gameProfile
+                  });
+                }
+              } else {
+                console.warn("[CheddaBoards] Nickname change failed, using:", finalNickname);
+              }
+            } else if (customNick && customNick.trim() === suggestion) {
+              // User accepted the suggestion
+              finalNickname = suggestion;
+            }
+          } else if (nickname) {
+            finalNickname = nickname;
+          }
+
+          this.authData = {
+            userType: "principal",
+            userId: principalText,
+            authType: "cheddaId",
+            nickname: finalNickname,
+          };
+          sessionStorage.setItem("chedda_auth", JSON.stringify(this.authData));
+          sessionStorage.setItem("auth_method", "cheddaId");
+
+          this.profile = {
+            nickname: finalNickname,
+            score: data.gameProfile ? Number(data.gameProfile.total_score || 0) : 0,
+            streak: data.gameProfile ? Number(data.gameProfile.best_streak || 0) : 0,
+            achievements: data.gameProfile ? data.gameProfile.achievements : [],
+            lastPlayed: data.gameProfile ? data.gameProfile.last_played : undefined,
+            playCount: data.gameProfile ? Number(data.gameProfile.play_count || 0) : 0,
+            gameId: this.gameId,
+            authType: "cheddaId",
+          };
+
+          if (typeof window !== "undefined" && window.emitToGodot) {
+            window.emitToGodot(
+              "chedda_id_login_success",
+              this.profile.nickname,
+              String(this.profile.score || 0),
+              String(this.profile.streak || 0),
+              JSON.stringify(this.profile.achievements || [])
+            );
+          }
+
+          console.log("[CheddaBoards] II 2.0 login complete:", this.profile.nickname);
+          this._iiInFlight = false;
+          resolve(this.profile);
+        } catch (e) {
+          console.error("[CheddaBoards] II 2.0 login error:", e);
+          this._iiInFlight = false;
+          reject(e);
+        }
+      },
+
+      onError: (error) => {
+        console.error("[CheddaBoards] II 2.0 authentication failed:", error);
+        this._iiInFlight = false;
+        reject(error);
+      },
+    });
+  });
+}
+
+async loginGoogle(googleCredential, nickname = null) {
   try {
-    console.log("[CheddaBoards] Google login via verifier…");
+    console.log("[CheddaBoards] Google login via CheddaAuth…");
 
-    // 1) Generate state/nonce for this attempt
     const state = crypto.randomUUID();
     const nonce = crypto.randomUUID();
 
-    // 2) NO client-side JWT parsing
     const resp = await fetch(VERIFIER_URL, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -399,32 +568,69 @@ this.profile = {
     }
 
     const sessionId = data.session.sessionId;
+    const email = data.session.email;
 
-    // 3) Prepare actor
     this.identity = new AnonymousIdentity();
     await this._createActor({ identity: this.identity });
 
-    // 4) Store session-based auth locally
-    this.userType  = "email";  
-    this.userId    = sessionId; 
+    this.userType  = "email";
+    this.userId    = sessionId;
     this.authType  = "google";
     this.sessionId = sessionId;
 
-    // 5) Load (or create) profile via your existing by-session flow
-    await this.loadProfile();
+    // Call backend to create/get profile
     const tempNick = nickname || `Chedda${Math.floor(Math.random() * 10000)}`;
-    let finalNickname = (this.profile && this.profile.nickname) ? this.profile.nickname : tempNick;
+    
+    const profileResult = await this.actor.socialLoginAndGetProfile(
+      email,
+      tempNick,
+      "google",
+      this.gameId
+    );
 
-    if (finalNickname === tempNick) {
-      const customNick = this._promptForNickname(tempNick);
-      if (customNick && customNick.trim() && customNick !== tempNick) {
+    if (profileResult?.err) throw new Error(profileResult.err);
+
+    const profileData = profileResult.ok;
+    
+    // Check if new user needs nickname
+    const isNewUser = profileData.isNewUser || 
+                      profileData.nickname.includes('@') || 
+                      profileData.nickname.startsWith('Chedda') ||
+                      profileData.nickname.startsWith('Player_');
+    
+    let finalNickname = profileData.nickname;
+
+    console.log("[CheddaBoards] Is new user:", isNewUser, "Current nickname:", finalNickname);
+
+    if (isNewUser && !nickname) {
+      const suggestion = await this._getSuggestedNickname();
+      const customNick = this._promptForNickname(suggestion);
+      if (customNick && customNick.trim() && customNick !== suggestion) {
+        console.log("[CheddaBoards] Changing nickname from", finalNickname, "to", customNick.trim());
+        
         const changeResult = await this.changeNickname(customNick.trim());
+        console.log("[CheddaBoards] Change nickname result:", changeResult);
+        
         if (changeResult?.success) {
           finalNickname = customNick.trim();
-          await this.loadProfile();
         }
+      } else if (customNick && customNick.trim() === suggestion) {
+        // User accepted the suggestion
+        finalNickname = suggestion;
       }
     }
+
+    // Build profile
+    this.profile = {
+      nickname: finalNickname,
+      score: profileData.gameProfile ? Number(profileData.gameProfile.total_score || 0) : 0,
+      streak: profileData.gameProfile ? Number(profileData.gameProfile.best_streak || 0) : 0,
+      achievements: profileData.gameProfile ? profileData.gameProfile.achievements : [],
+      lastPlayed: profileData.gameProfile ? profileData.gameProfile.last_played : undefined,
+      playCount: profileData.gameProfile ? Number(profileData.gameProfile.play_count || 0) : 0,
+      gameId: this.gameId,
+      authType: "google",
+    };
 
     this.authData = {
       userType: "email",
@@ -433,15 +639,9 @@ this.profile = {
       nickname: finalNickname,
       sessionId
     };
+    
     sessionStorage.setItem("chedda_auth", JSON.stringify(this.authData));
     sessionStorage.setItem("auth_method", "google");
-
-    // 7) Build profile object
-    //If loadProfile() already set it, update nickname just in case.
-    this.profile = this.profile || {};
-    this.profile.nickname = finalNickname;
-    this.profile.authType = "google";
-    this.profile.gameId   = this.gameId;
 
     if (typeof window !== "undefined" && window.emitToGodot) {
       window.emitToGodot(
@@ -453,7 +653,7 @@ this.profile = {
       );
     }
 
-    console.log("[CheddaBoards] Google login complete (session):", finalNickname);
+    console.log("[CheddaBoards] Google login complete:", finalNickname);
     return this.profile;
   } catch (e) {
     console.error("Google login failed:", e);
@@ -461,27 +661,20 @@ this.profile = {
   }
 }
 
-  // =================== AUTH: Apple ===================
-  
-  async loginApple(appleResponse, providedNonce = null) {
+async loginApple(appleResponse, providedNonce = null) {
   try {
-    console.log("[CheddaBoards] Apple login via verifier…");
+    console.log("[CheddaBoards] Apple login via CheddaAuth…");
 
     if (!appleResponse || !appleResponse.id_token) {
       throw new Error("Invalid Apple sign-in response (missing id_token)");
     }
 
-    // The nonce should be provided from the Apple Sign-In initialization
-    // If not provided, we'll send null and skip nonce verification on backend
-    
-    //rs
     if (!providedNonce) {
-      console.warn("[CheddaBoards] No nonce provided for Apple login - nonce verification will be skipped");
+      console.warn("[CheddaBoards] No nonce provided for Apple login");
     }
 
     const state = crypto.randomUUID();
 
-    // 2) Verify with your function
     const resp = await fetch(VERIFIER_URL, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -500,37 +693,69 @@ this.profile = {
     }
 
     const sessionId = data.session.sessionId;
+    const email = data.session.email;
 
-    // 3) Prepare actor (anonymous is fine for session-based calls)
     this.identity = new AnonymousIdentity();
     await this._createActor({ identity: this.identity });
 
-    // 4) Store session-based auth locally
-    this.userType  = "email"; 
-    this.userId    = sessionId; 
+    this.userType  = "email";
+    this.userId    = sessionId;
     this.authType  = "apple";
     this.sessionId = sessionId;
 
-    // 5) Load (or create) profile via your by-session API
-    await this.loadProfile();
-
-    // Fallback nickname if profile didn't populate one
     const tempNick = `Chedda${Math.floor(Math.random() * 10000)}`;
-    let finalNickname = (this.profile && this.profile.nickname) ? this.profile.nickname : tempNick;
+    
+    const profileResult = await this.actor.socialLoginAndGetProfile(
+      email,
+      tempNick,
+      "apple",
+      this.gameId
+    );
 
-    // Prompt once for a nicer nick on first run
-    if (finalNickname === tempNick) {
-      const customNick = this._promptForNickname(tempNick);
-      if (customNick && customNick.trim() && customNick !== tempNick) {
+    if (profileResult?.err) throw new Error(profileResult.err);
+
+    const profileData = profileResult.ok;
+    
+    // Check if new user needs nickname
+    const isNewUser = profileData.isNewUser || 
+                      profileData.nickname.includes('@') || 
+                      profileData.nickname.startsWith('Chedda') ||
+                      profileData.nickname.startsWith('Player_');
+    
+    let finalNickname = profileData.nickname;
+
+    console.log("[CheddaBoards] Is new user:", isNewUser, "Current nickname:", finalNickname);
+
+    if (isNewUser) {
+      const suggestion = await this._getSuggestedNickname();
+      const customNick = this._promptForNickname(suggestion);
+      if (customNick && customNick.trim() && customNick !== suggestion) {
+        console.log("[CheddaBoards] Changing nickname from", finalNickname, "to", customNick.trim());
+        
         const changeResult = await this.changeNickname(customNick.trim());
+        console.log("[CheddaBoards] Change nickname result:", changeResult);
+        
         if (changeResult?.success) {
           finalNickname = customNick.trim();
-          await this.loadProfile(); // refresh after nickname change
         }
+      } else if (customNick && customNick.trim() === suggestion) {
+        // User accepted the suggestion
+        finalNickname = suggestion;
       }
     }
 
-    // 6) Persist auth
+    // Build profile
+    this.profile = {
+      nickname: finalNickname,
+      score: profileData.gameProfile ? Number(profileData.gameProfile.total_score || 0) : 0,
+      streak: profileData.gameProfile ? Number(profileData.gameProfile.best_streak || 0) : 0,
+      achievements: profileData.gameProfile ? profileData.gameProfile.achievements : [],
+      lastPlayed: profileData.gameProfile ? profileData.gameProfile.last_played : undefined,
+      playCount: profileData.gameProfile ? Number(profileData.gameProfile.play_count || 0) : 0,
+      gameId: this.gameId,
+      authType: "apple",
+    };
+
     this.authData = {
       userType: "email",
       userId: sessionId,
@@ -538,14 +763,9 @@ this.profile = {
       nickname: finalNickname,
       sessionId
     };
+    
     sessionStorage.setItem("chedda_auth", JSON.stringify(this.authData));
     sessionStorage.setItem("auth_method", "apple");
-
-    // 7) Keep profile shape consistent
-    this.profile = this.profile || {};
-    this.profile.nickname = finalNickname;
-    this.profile.authType = "apple";
-    this.profile.gameId   = this.gameId;
 
     if (typeof window !== "undefined" && window.emitToGodot) {
       window.emitToGodot(
@@ -557,15 +777,15 @@ this.profile = {
       );
     }
 
-    console.log("[CheddaBoards] Apple login complete (session):", finalNickname);
+    console.log("[CheddaBoards] Apple login complete:", finalNickname);
     return this.profile;
   } catch (e) {
     console.error("Apple login failed:", e);
     throw e;
   }
 }
+
   // =================== Logout ===================
-  
   async logout() {
     try {
       if (this.sessionId) {
@@ -598,10 +818,9 @@ this.profile = {
   }
 
   // =================== Game Methods ===================
-  
- async submitScore(score, streak) {
+  async submitScore(score, streak, roundsPlayed = null) {
 
-   if (score < 0 || streak < 0) {
+      if (score < 0 || streak < 0) {
     throw new Error('Score and streak must be non-negative');
   }
   if (typeof score !== 'number' || typeof streak !== 'number') {
@@ -629,9 +848,17 @@ this.profile = {
       userIdType = "principal";
       userId = this.userId;
       
+      console.log("📍 Principal auth:");
+      console.log("  userIdType:", userIdType);
+      console.log("  userId:", userId);
+      
     } else if (this.userType === "email") {
       userIdType = "email";
       userId = this.sessionId;
+      
+     // console.log("📍 Email auth:");
+      //console.log("  userIdType:", userIdType);
+     // console.log("  userId:", userId);
       
     } else {
       console.error("❌ Invalid userType:", this.userType);
@@ -658,7 +885,8 @@ this.profile = {
       userId,
       this.gameId,
       Math.floor(score),
-      Math.floor(streak)
+      Math.floor(streak),
+      roundsPlayed !== null ? [roundsPlayed] : []
     );
 
     console.log("✅ Backend response:", result);
@@ -680,12 +908,11 @@ this.profile = {
 
     return { success: false, error: "Unknown error" };
   } catch (e) {
-    
     return { success: false, error: e.message };
   }
 }
 
-  async getLeaderboard(sortBy = "score", limit = 1000) {
+  async getLeaderboard(sortBy = "score", limit = 10000) {
     try {
       if (!this.actor) await this._createActor({ identity: this.identity });
       const sortByVariant = sortBy === "streak" ? { streak: null } : { score: null };
@@ -700,26 +927,26 @@ this.profile = {
   nickname: entry[0] || "Unknown",
   score: Number(entry[1] || 0),
   streak: Number(entry[2] || 0),
-        
-  rank: index + 1,  // Calculate rank from position
+  rank: index + 1,
   authType: entry[3] || "unknown",
 }));
-      
     } catch (e) {
       console.error("Leaderboard fetch failed:", e);
       return [];
     }
   }
 
-  async getLeaderboardByAuth(authType, sortBy = "score", limit = 100) {
+ async getLeaderboardByAuth(authType, sortBy = "score", limit = 10000) {
     try {
       if (!this.actor) await this._createActor({ identity: this.identity });
 
       const backendAuthType =
-        authType === "cheddaId"
+        authType === "cheddaId" || authType === "internetIdentity"
           ? { internetIdentity: null }
           : authType === "google"
           ? { google: null }
+          : authType === "apple"
+          ? { apple: null }
           : { apple: null };
 
       const sortByVariant = sortBy === "streak" ? { streak: null } : { score: null };
@@ -731,19 +958,28 @@ this.profile = {
         limit
       );
 
-      if (Array.isArray(results) && results.length === 1 && Array.isArray(results[0])) {
+      while (Array.isArray(results) && 
+             results.length === 1 && 
+             Array.isArray(results[0]) &&
+             results[0].length !== 4) { 
         results = results[0];
       }
+
       if (!Array.isArray(results)) return [];
 
-      return results.map((entry, index) => ({
-  nickname: entry[0] || "Unknown",
-  score: Number(entry[1] || 0),
-  streak: Number(entry[2] || 0),
-        
-  rank: index + 1,
-  authType: entry[3] || "unknown",
-}));
+      return results.map((entry, index) => {
+        if (!Array.isArray(entry) || entry.length < 4) {
+          return null;
+        }
+
+        return {
+          nickname: String(entry[0] || "Unknown"),
+          score: Number(entry[1] || 0),
+          streak: Number(entry[2] || 0),
+          rank: index + 1,
+          authType: String(entry[3] || "unknown"),
+        };
+      }).filter(e => e !== null);
       
     } catch (e) {
       console.error("Leaderboard by auth fetch failed:", e);
@@ -811,139 +1047,72 @@ this.profile = {
   }
 
   // =================== Profile ===================
-  
- async getProfile() {
+
+async getProfile() {
   try {
     if (!this.actor) await this._createActor({ identity: this.identity });
     if (!this.userType) return null;
 
-    let gameProfileResult;
-    let userProfile;
+    const userIdType = this.userType === "principal" ? "principal" : "session";
+    const userId = this.userType === "principal" ? this.userId : this.sessionId;
+    
+    const result = await this.actor.getGameProfile(userIdType, userId, this.gameId);
 
-    if (this.sessionId) {
-      
-      // Authenticated session call (returns Result)
-      
-      const gpResult = await this.actor.getGameProfileBySession(
-        this.sessionId,
-        this.gameId
-      );
-      
-      if (gpResult?.ok) {
-        gameProfileResult = [gpResult.ok];
-      } else if (gpResult?.err) {
-        console.error("[CheddaBoards] Game profile error:", gpResult.err);
-        gameProfileResult = null;
-      } else {
-        gameProfileResult = null;
-      }
-      
-      const upResult = await this.actor.getProfileBySession(this.sessionId);
-      
-      if (upResult?.ok) {
-        userProfile = [upResult.ok];
-      } else if (upResult?.err) {
-        console.error("[CheddaBoards] User profile error:", upResult.err);
-        userProfile = null;
-      } else {
-        userProfile = null;
-      }
-      
-    } else if (this.userType === "principal") {
-
-      const ac = this.authClient || window.cheddaAuthClient;
-      if (ac && (await ac.isAuthenticated())) {
-        this.identity = ac.getIdentity();
-        await this._createActor({ identity: this.identity });
-      }
-      gameProfileResult = await this.actor.getGameProfile("principal", this.userId, this.gameId);
-      userProfile = await this.actor.getProfile("principal", this.userId);
-      
-    } else {
-
-      gameProfileResult = await this.actor.getGameProfile(
-        this.userType,
-        this.userType === "email" ? this.userId : "",
-        this.gameId
-      );
-      userProfile = await this.actor.getProfile(
-        this.userType,
-        this.userType === "email" ? this.userId : ""
-      );
-    }
-
-    let nickname = this.authData?.nickname || "Player";
-    if (userProfile && userProfile[0]) {
-      nickname = userProfile[0].nickname || nickname;
-    }
-
-    if (gameProfileResult && gameProfileResult[0]) {
+    if (result?.ok) {
+      const gp = result.ok;
       return {
-        nickname,
-        score: Number(gameProfileResult[0].total_score || 0),
-        streak: Number(gameProfileResult[0].best_streak || 0),
-        achievements: gameProfileResult[0].achievements || [],
-        lastPlayed: gameProfileResult[0].last_played,
-        playCount: Number(gameProfileResult[0].play_count || 0),
+        nickname: this.authData?.nickname || "Player",
+        score: Number(gp.total_score || 0),
+        streak: Number(gp.best_streak || 0),
+        achievements: gp.achievements || [],
+        lastPlayed: gp.last_played,
+        playCount: Number(gp.play_count || 0),
         gameId: this.gameId,
-        authType: this.authType === "internetIdentity" ? "cheddaId" : this.authType,
-      };
-    } else {
-      return {
-        nickname,
-        score: 0,
-        streak: 0,
-        achievements: [],
-        playCount: 0,
-        gameId: this.gameId,
-        authType: this.authType === "internetIdentity" ? "cheddaId" : this.authType,
+        authType: this.authType,
       };
     }
+    
+    return null;
   } catch (e) {
     console.error("Profile fetch failed:", e);
     return null;
   }
 }
 
-  async getAllGameProfiles() {
-    try {
-      if (!this.actor) await this._createActor({ identity: this.identity });
-      if (!this.userType) return null;
+// ✅ Get ALL games for user (dashboard use)
+async getAllGameProfiles() {
+  try {
+    if (!this.actor) await this._createActor({ identity: this.identity });
+    if (!this.userType) return null;
 
-      let userProfile;
-      if (this.sessionId) {
-        userProfile = await this.actor.getProfileBySession(this.sessionId);
-      } else if (this.userType === "principal") {
-        userProfile = await this.actor.getProfile("principal", this.userId);
-      } else {
-        userProfile = await this.actor.getProfile(
-          this.userType,
-          this.userType === "email" ? this.userId : ""
-        );
-      }
+    const userIdType = this.userType === "principal" ? "principal" : "session";
+    const userId = this.userType === "principal" ? this.userId : this.sessionId;
+    
+    const result = await this.actor.getUserProfile(userIdType, userId);
 
-      if (userProfile && userProfile[0]) {
-        const profile = userProfile[0];
-        return {
-          nickname: profile.nickname,
-          authType: this.authType === "internetIdentity" ? "cheddaId" : this.authType,
-          games: profile.gameProfiles.map(([gameId, gameProfile]) => ({
-            gameId,
-            score: Number(gameProfile.total_score || 0),
-            streak: Number(gameProfile.best_streak || 0),
-            achievements: gameProfile.achievements || [],
-            lastPlayed: gameProfile.last_played,
-            playCount: Number(gameProfile.play_count || 0),
-          })),
-          created: profile.created,
-        };
-      }
-      return null;
-    } catch (e) {
-      console.error("All profiles fetch failed:", e);
-      return null;
+    if (result?.ok) {
+      const profile = result.ok;
+      return {
+        nickname: profile.nickname,
+        authType: this.authType,
+        games: profile.gameProfiles.map(([gameId, gp]) => ({
+          gameId,
+          score: Number(gp.total_score || 0),
+          streak: Number(gp.best_streak || 0),
+          achievements: gp.achievements || [],
+          lastPlayed: gp.last_played,
+          playCount: Number(gp.play_count || 0),
+        })),
+        created: profile.created,
+      };
     }
+    
+    return null;
+  } catch (e) {
+    console.error("All profiles fetch failed:", e);
+    return null;
   }
+}
 
   async loadProfile() {
     this.profile = await this.getProfile();
@@ -968,9 +1137,39 @@ this.profile = {
   }
 
   async refreshProfile() {
-    console.log("[CheddaBoards] Explicitly refreshing profile from blockchain");
     return await this.loadProfile();
   }
+
+async getMyFullProfile() {
+  try {
+    if (!this.actor) await this._createActor({ identity: this.identity });
+    if (!this.userType) return null;
+
+    let result;
+    
+    if (this.sessionId) {
+      result = await this.actor.getMyProfileBySession(this.sessionId);
+    } else if (this.userType === "principal") {
+      const ac = this.authClient || window.cheddaAuthClient;
+      if (ac && (await ac.isAuthenticated())) {
+        this.identity = ac.getIdentity();
+        await this._createActor({ identity: this.identity });
+      }
+      result = await this.actor.getMyProfile();
+    } else {
+      return null;
+    }
+
+    if (result?.ok) {
+      return result.ok;
+    }
+    
+    return null;
+  } catch (e) {
+    console.error("Full profile fetch failed:", e);
+    return null;
+  }
+}
 
   async changeNickname(newNickname) {
     try {
@@ -1149,12 +1348,10 @@ this.profile = {
     }
   }
 
-  async unlockAchievement(achievementId, name, description) {
+  async unlockAchievement(achievementId) {
     try {
       if (!this.actor) await this._createActor({ identity: this.identity });
       if (!this.userType) return { success: false, error: "Not authenticated" };
-
-      const achievement = { id: achievementId, name, description, gameId: this.gameId };
 
       let userIdType, userId;
       if (this.userType === "principal") {
@@ -1171,7 +1368,7 @@ this.profile = {
         userIdType,
         userId,
         this.gameId,
-        achievement
+        achievementId
       );
 
       if (result?.ok) {
@@ -1187,7 +1384,6 @@ this.profile = {
   }
 
   // =================== Analytics ===================
-  
   async trackEvent(eventType, metadata = {}) {
     try {
       if (!this.actor) await this._createActor({ identity: this.identity });
@@ -1204,7 +1400,7 @@ this.profile = {
       let userId;
       
       if (this.userType === "email" || this.userType === "session") {
-        userId = this.sessionId;
+        userId = this.sessionId; // ← Changed from this.userId
       } else if (this.userType === "principal") {
         const ac = this.authClient || window.cheddaAuthClient;
         if (ac && (await ac.isAuthenticated())) {
@@ -1236,7 +1432,7 @@ this.profile = {
   }
 
   async getPlayerAnalytics(_identifier) {
-    return null; // future ?
+    return null; // future
   }
 
   async getAnalyticsSummary() {
@@ -1327,7 +1523,7 @@ this.profile = {
       return [];
     }
   }
-//?
+
   async getFile(filename) {
     try {
       if (!this.actor) await this._createActor({ identity: this.identity });
@@ -1365,7 +1561,6 @@ this.profile = {
   }
 
   // =================== Helper getters ===================
-  
   _authTypeToString(authType) {
     if (!authType) return "unknown";
     if (authType.internetIdentity !== undefined) return "cheddaId";
@@ -1417,7 +1612,9 @@ this.profile = {
   }
 }
 
-// ======================= API Wrapper =======================
+// DEVELOPERS: Replace with your OAuth verifier endpoint
+const VERIFIER_URL = "YOUR_VERIFIER_ENDPOINT_HERE";
+
 const CheddaAPI = {
   init: async (canisterId, config = {}) => {
     if (!config.gameId) {
@@ -1430,69 +1627,71 @@ const CheddaAPI = {
     await instance.init();
 
     return {
-      // Auth (friendly)
-      login: {
-        chedda: (nickname) => instance.loginChedda(nickname),
-        google: (cred, nickname) => instance.loginGoogle(cred, nickname),
-        apple: (resp, nickname) => instance.loginApple(resp, nickname),
-      },
+  // =================== AUTH ===================
+  login: {
+    chedda: (nickname) => instance.loginChedda(nickname),
+    ii2: (nickname) => instance.loginII2(nickname),
+    google: (cred, nickname) => instance.loginGoogle(cred, nickname),
+    apple: (resp, nickname) => instance.loginApple(resp, nickname),
+  },
+  
+  // Direct methods (keep for backwards compatibility)
+  loginChedda: (nickname) => instance.loginChedda(nickname),
+  loginII2: (nickname) => instance.loginII2(nickname),
+  loginGoogle: (cred, nickname) => instance.loginGoogle(cred, nickname),
+  loginApple: (resp, nickname) => instance.loginApple(resp, nickname),
+  logout: () => instance.logout(),
+  isAuthenticated: () => instance.isAuthenticated(),
+  getAuthType: () => instance.getAuthType(),
 
-      // Direct
-      loginChedda: (nickname) => instance.loginChedda(nickname),
-      loginGoogle: (cred, nickname) => instance.loginGoogle(cred, nickname),
-      loginApple: (resp, nickname) => instance.loginApple(resp, nickname),
-      logout: () => instance.logout(),
 
-      // Registration/slots
+      // =================== GAME REGISTRATION ===================
       registerGame: (name, desc, rules) => instance.registerGame(name, desc, rules),
       getMyGameCount: () => instance.getMyGameCount(),
       getRemainingGameSlots: () => instance.getRemainingGameSlots(),
 
-      // Game ops
-      submitScore: (score, streak) => instance.submitScore(score, streak),
+      // =================== GAMEPLAY ===================
+      submitScore: (score, streak, rounds) => instance.submitScore(score, streak, rounds),
+      unlockAchievement: (id) => instance.unlockAchievement(id),
+
+      // =================== LEADERBOARDS ===================
       getLeaderboard: (sortBy, limit) => instance.getLeaderboard(sortBy, limit),
-      getLeaderboardByAuth: (authType, sortBy, limit) =>
+      getLeaderboardByAuth: (authType, sortBy, limit) => 
         instance.getLeaderboardByAuth(authType, sortBy, limit),
+      getPlayerRank: (sortBy) => instance.getPlayerRank(sortBy),
       getGameAuthStats: () => instance.getGameAuthStats(),
-      getPlayerRank: (sortBy, userIdType, userId) =>
-        instance.getPlayerRank(sortBy, userIdType, userId),
-      changeNickname: (name) => instance.changeNickname(name),
-      unlockAchievement: (id, name, desc) => instance.unlockAchievement(id, name, desc),
-      changeNicknameWithPrompt: () => instance.changeNicknameWithPrompt(),
 
-      // Management
-      listGames: () => instance.listGames(),
-      getGameInfo: () => instance.getGameInfo(),
-      getSystemInfo: () => instance.getSystemInfo(),
-      updateGameRules: (a, b, c, d) => instance.updateGameRules(a, b, c, d),
-
-      // Profiles
-      profile: instance.profile,
+      // =================== PROFILES ===================
       getProfile: () => instance.getProfile(),
+      getAllGameProfiles: () => instance.getAllGameProfiles(),
       getCachedProfile: () => instance.getCachedProfile(),
       refreshProfile: () => instance.refreshProfile(),
-      getAllGameProfiles: () => instance.getAllGameProfiles(),
-      isAuthenticated: () => instance.isAuthenticated(),
+      changeNickname: (name) => instance.changeNickname(name),
+      changeNicknameWithPrompt: () => instance.changeNicknameWithPrompt(),
 
-      // Analytics
+      // =================== GAME MANAGEMENT ===================
+      listGames: () => instance.listGames(),
+      getGameInfo: () => instance.getGameInfo(),
+      updateGameRules: (a, b, c, d) => instance.updateGameRules(a, b, c, d),
+
+      // =================== ANALYTICS ===================
       trackEvent: (type, data) => instance.trackEvent(type, data),
       getDailyStats: (date) => instance.getDailyStats(date),
-      getPlayerAnalytics: (id) => instance.getPlayerAnalytics(id),
       getAnalyticsSummary: () => instance.getAnalyticsSummary(),
 
-      // Files
+      // =================== FILES ===================
       uploadFile: (name, data) => instance.uploadFile(name, data),
       listFiles: () => instance.listFiles(),
       getFile: (name) => instance.getFile(name),
 
-      // Info
+      // =================== SYSTEM ===================
+      getSystemInfo: () => instance.getSystemInfo(),
+      
+      // =================== METADATA ===================
       gameId: instance.gameId,
       getPrincipal: () => instance.getPrincipal(),
-      getAuthType: () => instance.getAuthType(),
-      getAuthData: () => instance.getAuthData(),
-      getSessionId: () => instance.getSessionId(),
 
-      // Raw instance (advanced)
+      // =================== ADVANCED ===================
       instance,
     };
   },
@@ -1503,6 +1702,3 @@ export default CheddaAPI;
 // UMD-ish exposure
 if (typeof window !== "undefined") window.CheddaBoards = CheddaAPI;
 if (typeof module !== "undefined" && module.exports) module.exports = CheddaAPI;
-
-
-
